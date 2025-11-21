@@ -19,7 +19,7 @@ import org.koin.logger.slf4jLogger
 fun main() {
     val config = ConfigLoader.fromEnv()
     val dataSource = DatabaseFactory.dataSource(config)
-    val flyway = FlywayMigrator.migrate(dataSource)
+    val flyway = FlywayMigrator.migrate(dataSource, config.autoMigrate)
 
     embeddedServer(Netty, port = config.port, host = config.host) {
         install(Koin) {

@@ -14,6 +14,7 @@ data class AppConfig(
     val jwtAudience: String,
     val rateLimitPerMinute: Long,
     val enableMetrics: Boolean,
+    val autoMigrate: Boolean,
 )
 
 object ConfigLoader {
@@ -35,6 +36,8 @@ object ConfigLoader {
             ?: DEFAULT_RATE_LIMIT_PER_MINUTE
 
         val enableMetrics = env("ENABLE_METRICS")?.toBooleanStrictOrNull() ?: false
+        val autoMigrate = env("FLYWAY_AUTO_MIGRATE")?.toBooleanStrictOrNull()
+            ?: environment.lowercase() != "production"
 
         val config = AppConfig(
             host = host,
@@ -48,6 +51,7 @@ object ConfigLoader {
             jwtAudience = jwtAudience,
             rateLimitPerMinute = rateLimit,
             enableMetrics = enableMetrics,
+            autoMigrate = autoMigrate,
         )
 
         validate(config)
