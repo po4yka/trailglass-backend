@@ -1,0 +1,37 @@
+# Kotlin / Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlinc/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# macOS/Linux junk
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+logs/
+*.log
+*.tmp
+*.swp
+
+# Docker / runtime data
+docker-compose.override.yml
+.env
+.env.*
+.envrc
+data/
+backups/
+
+# Kotlin/Native
+.kmm/
+.kdoctor/
+
+# Misc
+*.local.properties
