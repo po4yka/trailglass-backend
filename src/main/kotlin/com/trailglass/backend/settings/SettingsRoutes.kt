@@ -8,7 +8,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
-import io.ktor.server.routing.rateLimit
+import io.ktor.server.plugins.ratelimit.rateLimit
 import org.koin.ktor.ext.inject
 import java.util.UUID
 

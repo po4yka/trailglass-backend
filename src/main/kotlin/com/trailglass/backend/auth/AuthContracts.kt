@@ -1,9 +1,14 @@
+@file:UseSerializers(UUIDSerializer::class, InstantSerializer::class)
+
 package com.trailglass.backend.auth
 
 import com.trailglass.backend.common.AuthTokens
 import com.trailglass.backend.common.DeviceInfo
 import com.trailglass.backend.common.UserProfile
+import com.trailglass.backend.common.InstantSerializer
+import com.trailglass.backend.common.UUIDSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import java.time.Instant
 import java.util.UUID
 

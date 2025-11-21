@@ -23,7 +23,7 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
     implementation("io.ktor:ktor-server-call-id:$ktorVersion")
-    implementation("io.ktor:ktor-server-rate-limit:$ktorVersion")
+    implementation("io.ktor:ktor-server-rate-limit-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
     implementation("io.ktor:ktor-server-double-receive:$ktorVersion")
@@ -42,11 +42,14 @@ dependencies {
 
     implementation("de.mkammerer:argon2-jvm:2.11")
     implementation("io.micrometer:micrometer-registry-prometheus:1.12.5")
+    implementation("com.auth0:java-jwt:4.4.0")
+    implementation("com.auth0:jwks-rsa:0.22.1")
 
     testImplementation("com.h2database:h2:2.2.224")
 
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
+    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation("org.testcontainers:junit-jupiter:1.19.7")
     testImplementation("org.testcontainers:postgresql:1.19.7")
 }
