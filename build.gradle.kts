@@ -14,6 +14,7 @@ val ktorVersion = "3.0.0"
 val koinVersion = "3.5.3"
 val exposedVersion = "0.53.0"
 val hikariVersion = "5.1.0"
+val coroutinesVersion = "1.8.1"
 
 dependencies {
     implementation("io.ktor:ktor-server-core:$ktorVersion")
@@ -42,16 +43,19 @@ dependencies {
 
     implementation("de.mkammerer:argon2-jvm:2.11")
     implementation("io.micrometer:micrometer-registry-prometheus:1.12.5")
+    implementation("io.micrometer:micrometer-core:1.12.5")
     implementation("com.auth0:java-jwt:4.4.0")
     implementation("com.auth0:jwks-rsa:0.22.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$coroutinesVersion")
 
     testImplementation("com.h2database:h2:2.2.224")
-
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation("org.testcontainers:junit-jupiter:1.19.7")
     testImplementation("org.testcontainers:postgresql:1.19.7")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
 }
 
 application {

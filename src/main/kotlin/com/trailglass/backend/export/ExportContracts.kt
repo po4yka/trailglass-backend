@@ -10,7 +10,7 @@ import java.time.Instant
 import java.util.UUID
 
 interface ExportService {
-    suspend fun requestExport(userId: UUID, deviceId: UUID): ExportJob
+    suspend fun requestExport(userId: UUID, deviceId: UUID, email: String? = null): ExportJob
     suspend fun getStatus(exportId: UUID, userId: UUID): ExportJob
 }
 
@@ -22,7 +22,8 @@ data class ExportJob(
     val status: ExportStatus,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val downloadUrl: String? = null
+    val downloadUrl: String? = null,
+    val expiresAt: Instant? = null
 )
 
 @Serializable
@@ -30,5 +31,6 @@ enum class ExportStatus {
     PENDING,
     RUNNING,
     COMPLETED,
-    FAILED
+    FAILED,
+    EXPIRED,
 }
