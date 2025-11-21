@@ -18,7 +18,13 @@ class JwtProvider(private val config: AppConfig) {
         .withIssuer(config.jwtIssuer)
         .build()
 
-    fun issueTokens(userId: UUID, email: String, deviceId: UUID, expiresInSeconds: Long = DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS): AuthTokens {
+    fun issueTokens(
+        userId: UUID,
+        email: String,
+        deviceId: UUID,
+        expiresInSeconds: Long = DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS,
+        refreshExpiresInSeconds: Long = DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS,
+    ): AuthTokens {
         val now = Instant.now()
         val accessToken = JWT.create()
             .withSubject(userId.toString())
@@ -37,7 +43,7 @@ class JwtProvider(private val config: AppConfig) {
             .withClaim("type", "refresh")
             .withClaim("deviceId", deviceId.toString())
             .withIssuedAt(Date.from(now))
-            .withExpiresAt(Date.from(now.plusSeconds(REFRESH_TOKEN_EXPIRY_SECONDS)))
+            .withExpiresAt(Date.from(now.plusSeconds(refreshExpiresInSeconds)))
             .sign(algorithm)
 
         return AuthTokens(
@@ -53,7 +59,7 @@ class JwtProvider(private val config: AppConfig) {
         get() = config.jwtAudience
 
     companion object {
-        private const val DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS = 3600L
-        private const val REFRESH_TOKEN_EXPIRY_SECONDS = 60L * 60L * 24L * 30L
+        const val DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS = 3600L
+        const val DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS = 60L * 60L * 24L * 30L
     }
 }

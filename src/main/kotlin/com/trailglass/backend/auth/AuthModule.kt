@@ -4,5 +4,5 @@ import org.koin.dsl.module
 
 val authModule = module {
     single { JwtProvider(get()) }
-    single<AuthService> { StubAuthService(get()) }
+    single<AuthService> { DefaultAuthService(get()) }
 }

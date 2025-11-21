@@ -38,13 +38,13 @@ fun Route.authRoutes() {
             }
         }
 
-        post("/password/reset/request") {
+        post("/reset-password-request") {
             val request = call.receive<PasswordResetRequest>()
             authService.requestPasswordReset(request.email)
             call.respond(HttpStatusCode.Accepted)
         }
 
-        post("/password/reset/confirm") {
+        post("/reset-password") {
             val request = call.receive<PasswordResetConfirm>()
             authService.resetPassword(request.token, request.newPassword)
             call.respond(HttpStatusCode.NoContent)
