@@ -7,11 +7,10 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.callid.CallId
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.doublereceive.DoubleReceive
-import io.ktor.server.plugins.ratelimit.RateLimit
-import io.ktor.server.plugins.ratelimit.RateLimitName
-import io.ktor.server.plugins.ratelimit.rateLimiter
+import io.ktor.server.plugins.ratelimit.*
 import org.slf4j.event.Level
-import java.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import java.util.UUID
 
 fun Application.configureMonitoring(config: AppConfig) {
@@ -21,39 +20,36 @@ fun Application.configureMonitoring(config: AppConfig) {
         verify { it.isNotBlank() }
     }
 
-    install(CallLogging) {
-        callIdMdc("call_id")
-        level = Level.INFO
-    }
+    install(CallLogging) { level = Level.INFO }
 
     install(DoubleReceive)
 
     install(RateLimit) {
         register(RateLimitName("global")) {
             rateLimiter(
-                limit = config.rateLimitPerMinute,
-                refillPeriod = Duration.ofMinutes(1)
+                limit = config.rateLimitPerMinute.toInt(),
+                refillPeriod = 1.minutes
             )
         }
 
         register(AuthRateLimit) {
-            rateLimiter(limit = 5, refillPeriod = Duration.ofMinutes(1))
+            rateLimiter(limit = 5, refillPeriod = 1.minutes)
         }
 
         register(SyncRateLimit) {
-            rateLimiter(limit = 10, refillPeriod = Duration.ofMinutes(1))
+            rateLimiter(limit = 10, refillPeriod = 1.minutes)
         }
 
         register(LocationBatchRateLimit) {
-            rateLimiter(limit = 100, refillPeriod = Duration.ofHours(1))
+            rateLimiter(limit = 100, refillPeriod = 1.hours)
         }
 
         register(PhotoUploadRateLimit) {
-            rateLimiter(limit = 50, refillPeriod = Duration.ofHours(1))
+            rateLimiter(limit = 50, refillPeriod = 1.hours)
         }
 
         register(DefaultFeatureRateLimit) {
-            rateLimiter(limit = 100, refillPeriod = Duration.ofMinutes(1))
+            rateLimiter(limit = 100, refillPeriod = 1.minutes)
         }
     }
 }

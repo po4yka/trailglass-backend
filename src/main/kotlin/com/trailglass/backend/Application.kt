@@ -1,40 +1,87 @@
 package com.trailglass.backend
 
-import com.trailglass.backend.config.ConfigLoader
-import com.trailglass.backend.di.appModule
-import com.trailglass.backend.persistence.DatabaseFactory
-import com.trailglass.backend.persistence.FlywayMigrator
-import com.trailglass.backend.plugins.configureAuthentication
-import com.trailglass.backend.plugins.configureMonitoring
-import com.trailglass.backend.plugins.configureRouting
-import com.trailglass.backend.plugins.configureSerialization
-import com.trailglass.backend.plugins.configureStatusHandling
-import io.ktor.server.application.Application
-import io.ktor.server.application.log
+import com.trailglass.backend.routes.apiRoutes
+import com.trailglass.backend.common.InstantSerializer
+import com.trailglass.backend.common.UUIDSerializer
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.plugins.callid.*
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import org.koin.ktor.plugin.Koin
-import org.koin.logger.slf4jLogger
+import io.ktor.server.plugins.calllogging.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.doublereceive.*
+import io.ktor.server.plugins.ratelimit.*
+import io.ktor.server.plugins.statuspages.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
+import org.slf4j.event.Level
+import kotlin.time.Duration.Companion.minutes
+import java.util.UUID
 
 fun main() {
-    val config = ConfigLoader.fromEnv()
-    val dataSource = DatabaseFactory.dataSource(config)
-    val flyway = FlywayMigrator.migrate(dataSource)
-
-    embeddedServer(Netty, port = config.port, host = config.host) {
-        install(Koin) {
-            slf4jLogger()
-            modules(appModule(config, dataSource, flyway))
-        }
-
-        configureSerialization()
-        configureStatusHandling()
-        configureMonitoring(config)
-        configureAuthentication()
-        configureRouting()
+    embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
+        module()
     }.start(wait = true)
 }
 
-fun Application.onApplicationReady() {
-    log.info("Trailglass backend started")
+fun Application.module() {
+    val serializers = SerializersModule {
+        contextual(UUIDSerializer)
+        contextual(InstantSerializer)
+    }
+
+    install(ContentNegotiation) {
+        json(
+            Json {
+                serializersModule = serializers
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+            }
+        )
+    }
+
+    install(CallId) {
+        header(io.ktor.http.HttpHeaders.XRequestId)
+        generate { UUID.randomUUID().toString() }
+        verify { it.isNotBlank() }
+    }
+
+    install(StatusPages) {
+        exception<Throwable> { call, cause ->
+            call.application.environment.log.error("Unhandled exception", cause)
+            call.respondText(
+                "Internal server error",
+                status = io.ktor.http.HttpStatusCode.InternalServerError
+            )
+        }
+    }
+
+    install(CallLogging) {
+        level = Level.INFO
+    }
+
+    install(RateLimit) {
+        register(RateLimitName("api")) {
+            rateLimiter(limit = 100, refillPeriod = 1.minutes)
+            requestKey { call -> call.request.local.remoteHost }
+        }
+    }
+
+    install(DoubleReceive)
+
+    install(Authentication) { }
+
+    routing {
+        route("/api") {
+            route("/v1") {
+                apiRoutes()
+            }
+        }
+    }
 }

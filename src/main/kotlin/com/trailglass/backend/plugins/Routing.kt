@@ -14,9 +14,9 @@ import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
-import io.ktor.server.routing.rateLimit
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.plugins.ratelimit.rateLimit
 
 fun Application.configureRouting() {
     routing {

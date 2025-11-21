@@ -1,8 +1,13 @@
+@file:UseSerializers(UUIDSerializer::class, InstantSerializer::class)
+
 package com.trailglass.backend.sync
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import java.time.Instant
 import java.util.UUID
+import com.trailglass.backend.common.UUIDSerializer
+import com.trailglass.backend.common.InstantSerializer
 
 interface SyncService {
     suspend fun getStatus(deviceId: UUID, userId: UUID): SyncStatus

@@ -11,14 +11,14 @@ object DatabaseFactory {
     private const val DEFAULT_POOL_SIZE = 5
 
     fun dataSource(config: AppConfig): HikariDataSource {
-        val jdbcUrl = config.databaseUrl?.takeIf { it.isNotBlank() }
+        val jdbcUrlValue = config.databaseUrl?.takeIf { it.isNotBlank() }
             ?: run {
                 println("[fatal] DATABASE_URL is required for persistence configuration")
                 exitProcess(1)
             }
 
         val hikariConfig = HikariConfig().apply {
-            jdbcUrl = jdbcUrl
+            jdbcUrl = jdbcUrlValue
             username = config.databaseUser
             password = config.databasePassword
             maximumPoolSize = DEFAULT_POOL_SIZE

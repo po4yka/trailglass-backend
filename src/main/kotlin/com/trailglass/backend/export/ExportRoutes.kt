@@ -1,3 +1,5 @@
+@file:UseSerializers(UUIDSerializer::class, InstantSerializer::class)
+
 package com.trailglass.backend.export
 
 import com.trailglass.backend.plugins.DefaultFeatureRateLimit
@@ -8,11 +10,14 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
-import io.ktor.server.routing.rateLimit
 import io.ktor.server.routing.route
+import io.ktor.server.plugins.ratelimit.rateLimit
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import org.koin.ktor.ext.inject
 import java.util.UUID
+import com.trailglass.backend.common.InstantSerializer
+import com.trailglass.backend.common.UUIDSerializer
 
 fun Route.exportRoutes() {
     val exportService by inject<ExportService>()
