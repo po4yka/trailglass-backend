@@ -122,7 +122,7 @@ class StubSettingsService : SettingsService {
 }
 
 class StubExportService : ExportService {
-    override suspend fun requestExport(userId: UUID, deviceId: UUID): ExportJob = ExportJob(
+    override suspend fun requestExport(userId: UUID, deviceId: UUID, email: String?): ExportJob = ExportJob(
         id = UUID.randomUUID(),
         userId = userId,
         deviceId = deviceId,
@@ -130,6 +130,7 @@ class StubExportService : ExportService {
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
         downloadUrl = null,
+        expiresAt = null,
     )
 
     override suspend fun getStatus(exportId: UUID, userId: UUID): ExportJob = ExportJob(
@@ -140,6 +141,7 @@ class StubExportService : ExportService {
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
         downloadUrl = null,
+        expiresAt = null,
     )
 }
 

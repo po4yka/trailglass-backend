@@ -18,13 +18,13 @@ fun Route.exportRoutes() {
     val exportService by inject<ExportService>()
 
     rateLimit(DefaultFeatureRateLimit) {
-        route("/exports") {
+        route("/export") {
             post {
                 val request = call.receive<ExportRequest>()
-                call.respond(HttpStatusCode.Accepted, exportService.requestExport(request.userId, request.deviceId))
+                call.respond(HttpStatusCode.Accepted, exportService.requestExport(request.userId, request.deviceId, request.email))
             }
 
-            get("/{id}") {
+            get("/{id}/status") {
                 val exportId = call.parameters["id"]?.let(UUID::fromString)
                 val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
 
@@ -43,4 +43,5 @@ fun Route.exportRoutes() {
 private data class ExportRequest(
     val userId: UUID,
     val deviceId: UUID,
+    val email: String? = null,
 )
