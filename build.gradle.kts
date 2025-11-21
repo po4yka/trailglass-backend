@@ -40,9 +40,13 @@ dependencies {
 
     implementation("de.mkammerer:argon2-jvm:2.11")
     implementation("io.micrometer:micrometer-registry-prometheus:1.12.5")
+    implementation("software.amazon.awssdk:s3:2.25.26")
 
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.8")
+    testImplementation("org.testcontainers:postgresql:1.19.8")
+    testImplementation("org.testcontainers:minio:1.19.8")
 }
 
 application {

@@ -4,6 +4,8 @@ import com.trailglass.backend.plugins.DefaultFeatureRateLimit
 import com.trailglass.backend.plugins.PhotoUploadRateLimit
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.auth.principal
+import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -12,7 +14,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.rateLimit
 import io.ktor.server.routing.route
-import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
 import java.time.Instant
 import java.util.UUID
@@ -22,60 +23,59 @@ fun Route.photoRoutes() {
 
     route("/photos") {
         rateLimit(PhotoUploadRateLimit) {
-            post("/upload") {
+            post {
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized)
                 val request = call.receive<PhotoUploadRequest>()
-                call.respond(HttpStatusCode.Created, photoService.requestUpload(request))
+                val userId = UUID.fromString(principal.subject!!)
+                val deviceId = principal.payload.getClaim("deviceId").asString()?.let(UUID::fromString)
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, "deviceId missing from token")
+
+                call.respond(HttpStatusCode.Created, photoService.createUpload(userId, deviceId, request))
             }
         }
 
         rateLimit(DefaultFeatureRateLimit) {
             post("/{id}/confirm") {
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                val userId = UUID.fromString(principal.subject!!)
                 val photoId = call.parameters["id"]?.let(UUID::fromString)
-                val confirmation = call.receive<ConfirmUploadRequest>()
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, "photo id is required")
 
-                if (photoId == null) {
-                    call.respond(HttpStatusCode.BadRequest, "photo id is required")
-                    return@post
-                }
-
-                call.respond(photoService.confirmUpload(photoId, confirmation.userId, confirmation.deviceId))
+                call.respond(photoService.confirmUpload(photoId, userId))
             }
 
             get {
-                val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                val userId = UUID.fromString(principal.subject!!)
                 val updatedAfter = call.request.queryParameters["updatedAfter"]?.let(Instant::parse)
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 100
-
-                if (userId == null) {
-                    call.respond(HttpStatusCode.BadRequest, "userId is required")
-                    return@get
-                }
 
                 call.respond(photoService.fetchMetadata(userId, updatedAfter, limit))
             }
 
             get("/{id}") {
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                val userId = UUID.fromString(principal.subject!!)
                 val photoId = call.parameters["id"]?.let(UUID::fromString)
-                val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
-                val deviceId = call.request.queryParameters["deviceId"]?.let(UUID::fromString)
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, "photo id is required")
 
-                if (photoId == null || userId == null || deviceId == null) {
-                    call.respond(HttpStatusCode.BadRequest, "photo id, userId, and deviceId are required")
-                    return@get
-                }
-
-                call.respond(photoService.confirmUpload(photoId, userId, deviceId))
+                call.respond(photoService.getPhoto(photoId, userId))
             }
 
             delete("/{id}") {
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@delete call.respond(HttpStatusCode.Unauthorized)
+                val userId = UUID.fromString(principal.subject!!)
+                val photoId = call.parameters["id"]?.let(UUID::fromString)
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, "photo id is required")
+
+                photoService.deletePhoto(photoId, userId)
                 call.respond(HttpStatusCode.NoContent)
             }
         }
     }
 }
-
-@Serializable
-private data class ConfirmUploadRequest(
-    val userId: UUID,
-    val deviceId: UUID,
-)

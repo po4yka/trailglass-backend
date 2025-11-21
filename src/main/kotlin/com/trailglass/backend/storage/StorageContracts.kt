@@ -1,7 +1,7 @@
 package com.trailglass.backend.storage
 
+import kotlinx.serialization.Serializable
 import java.io.InputStream
-import java.net.URL
 
 interface ObjectStorageService {
     suspend fun presignUpload(key: String, contentType: String, contentLength: Long): PresignedObject
@@ -11,8 +11,9 @@ interface ObjectStorageService {
     suspend fun openStream(key: String): InputStream
 }
 
+@Serializable
 data class PresignedObject(
-    val url: URL,
+    val url: String,
     val headers: Map<String, String> = emptyMap(),
-    val expiresInSeconds: Long = 900
+    val expiresInSeconds: Long = 900,
 )
