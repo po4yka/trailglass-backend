@@ -41,6 +41,8 @@ dependencies {
     implementation("de.mkammerer:argon2-jvm:2.11")
     implementation("io.micrometer:micrometer-registry-prometheus:1.12.5")
 
+    testImplementation("com.h2database:h2:2.2.224")
+    
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 }

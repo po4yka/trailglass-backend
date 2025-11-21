@@ -1,5 +1,10 @@
 package com.trailglass.backend.plugins
 
+import com.trailglass.backend.location.locationRoutes
+import com.trailglass.backend.settings.settingsRoutes
+import com.trailglass.backend.trip.tripRoutes
+import com.trailglass.backend.user.userProfileRoutes
+import com.trailglass.backend.visit.placeVisitRoutes
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -22,6 +27,12 @@ fun Application.configureRouting() {
                     )
                 )
             }
+
+            locationRoutes()
+            tripRoutes()
+            settingsRoutes()
+            placeVisitRoutes()
+            userProfileRoutes()
         }
     }
 }
