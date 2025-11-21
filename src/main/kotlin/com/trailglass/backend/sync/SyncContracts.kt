@@ -47,6 +47,7 @@ data class SyncDeltaResponse(
 
 @Serializable
 data class SyncConflict(
+    val conflictId: UUID,
     val entityId: UUID,
     val serverVersion: Long,
     val deviceVersion: Long,
