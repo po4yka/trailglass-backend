@@ -9,6 +9,11 @@ import kotlinx.serialization.Serializable
 
 fun Application.configureStatusHandling() {
     install(StatusPages) {
+        exception<ApiException> { call, cause ->
+            val error = ErrorResponse(code = cause.code, message = cause.message, details = cause.details)
+            call.respond(cause.status, error)
+        }
+
         exception<Throwable> { call, cause ->
             val error = ErrorResponse(code = "internal_error", message = cause.message ?: "Unexpected error")
             call.respond(HttpStatusCode.InternalServerError, error)

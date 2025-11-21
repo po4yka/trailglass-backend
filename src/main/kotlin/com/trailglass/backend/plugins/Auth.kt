@@ -18,7 +18,8 @@ fun Application.configureAuthentication() {
             verifier(jwtProvider.verifier())
             validate { credential ->
                 val hasAudience = credential.payload.audience.contains(jwtProvider.audience)
-                if (hasAudience) JWTPrincipal(credential.payload) else null
+                val isRefresh = credential.payload.getClaim("type").asString() == "refresh"
+                if (hasAudience && !isRefresh) JWTPrincipal(credential.payload) else null
             }
         }
     }
