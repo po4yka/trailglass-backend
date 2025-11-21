@@ -15,9 +15,12 @@ import com.trailglass.backend.export.InMemoryExportJobRepository
 import com.trailglass.backend.location.ExposedLocationService
 import com.trailglass.backend.location.LocationService
 import com.trailglass.backend.photo.PhotoService
+import com.trailglass.backend.config.AppConfig
+import com.trailglass.backend.config.StorageConfig
+import com.trailglass.backend.photo.PhotoServiceImpl
+import com.trailglass.backend.persistence.PhotoRepository
 import com.trailglass.backend.settings.ExposedSettingsService
 import com.trailglass.backend.settings.SettingsService
-import com.trailglass.backend.stubs.StubPhotoService
 import com.trailglass.backend.sync.SyncServiceImpl
 import com.trailglass.backend.sync.SyncService
 import com.trailglass.backend.trip.ExposedTripService
@@ -39,7 +42,7 @@ val domainModule = module {
     single<SyncService> { SyncServiceImpl(get()) }
     single<LocationService> { ExposedLocationService(get()) }
     single<TripService> { ExposedTripService(get()) }
-    single<PhotoService> { StubPhotoService() }
+    single<PhotoService> { PhotoServiceImpl(get<PhotoRepository>(), get(), get<AppConfig>().storage) }
     single<SettingsService> { ExposedSettingsService(get()) }
     single<PlaceVisitService> { ExposedPlaceVisitService(get()) }
     single<UserProfileService> { ExposedUserProfileService(get()) }
@@ -55,7 +58,6 @@ val domainModule = module {
         )
     }
 
-    single<ObjectStorageService> { InMemoryObjectStorageService() }
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { RecurringTaskScheduler(get()) }
     single { ExportMetrics(SimpleMeterRegistry()) }

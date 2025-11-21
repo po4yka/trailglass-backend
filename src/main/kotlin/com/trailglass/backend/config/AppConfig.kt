@@ -15,7 +15,21 @@ data class AppConfig(
     val rateLimitPerMinute: Long,
     val enableMetrics: Boolean,
     val autoMigrate: Boolean,
+    val storage: StorageConfig,
 )
+
+data class StorageConfig(
+    val backend: StorageBackend,
+    val bucket: String?,
+    val region: String?,
+    val endpoint: String?,
+    val accessKey: String?,
+    val secretKey: String?,
+    val usePathStyle: Boolean,
+    val signingSecret: String?,
+)
+
+enum class StorageBackend { S3, DATABASE }
 
 object ConfigLoader {
     private const val DEFAULT_PORT = 8080
@@ -25,6 +39,8 @@ object ConfigLoader {
     private const val DEFAULT_JWT_AUDIENCE = "trailglass-clients"
     private const val DEFAULT_JWT_SECRET = "dev-secret-change-me"
     private const val DEFAULT_RATE_LIMIT_PER_MINUTE = 120L
+    private const val DEFAULT_STORAGE_BACKEND = "database"
+    private const val DEFAULT_STORAGE_BUCKET = "trailglass"
 
     fun fromEnv(): AppConfig {
         val port = env("APP_PORT")?.toIntOrNull() ?: DEFAULT_PORT
@@ -39,6 +55,25 @@ object ConfigLoader {
         val autoMigrate = env("FLYWAY_AUTO_MIGRATE")?.toBooleanStrictOrNull()
             ?: environment.lowercase() != "production"
 
+        val storageBackend = env("STORAGE_BACKEND")?.lowercase()
+            ?: DEFAULT_STORAGE_BACKEND
+        val backend = when (storageBackend) {
+            "s3", "minio" -> StorageBackend.S3
+            "database", "postgres" -> StorageBackend.DATABASE
+            else -> error("Unsupported STORAGE_BACKEND: $storageBackend")
+        }
+
+        val storage = StorageConfig(
+            backend = backend,
+            bucket = env("STORAGE_BUCKET") ?: DEFAULT_STORAGE_BUCKET,
+            region = env("STORAGE_REGION") ?: "us-east-1",
+            endpoint = env("STORAGE_ENDPOINT"),
+            accessKey = env("STORAGE_ACCESS_KEY"),
+            secretKey = env("STORAGE_SECRET_KEY"),
+            usePathStyle = env("STORAGE_PATH_STYLE")?.toBooleanStrictOrNull() ?: true,
+            signingSecret = env("STORAGE_SIGNING_SECRET"),
+        )
+
         val config = AppConfig(
             host = host,
             port = port,
@@ -52,6 +87,7 @@ object ConfigLoader {
             rateLimitPerMinute = rateLimit,
             enableMetrics = enableMetrics,
             autoMigrate = autoMigrate,
+            storage = storage,
         )
 
         validate(config)
@@ -71,6 +107,18 @@ object ConfigLoader {
         if (config.databaseUrl.isNullOrBlank()) {
             println("[fatal] DATABASE_URL is required for persistence configuration")
             exitProcess(1)
+        }
+
+        if (config.storage.backend == StorageBackend.S3) {
+            if (config.storage.bucket.isNullOrBlank()) {
+                println("[fatal] STORAGE_BUCKET is required for S3 storage backend")
+                exitProcess(1)
+            }
+
+            if (config.storage.accessKey.isNullOrBlank() || config.storage.secretKey.isNullOrBlank()) {
+                println("[fatal] STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY are required for S3 storage backend")
+                exitProcess(1)
+            }
         }
     }
 
