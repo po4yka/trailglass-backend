@@ -43,7 +43,7 @@ dependencies {
     implementation("io.micrometer:micrometer-registry-prometheus:1.12.5")
 
     testImplementation("com.h2database:h2:2.2.224")
-    
+
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
     testImplementation("org.testcontainers:junit-jupiter:1.19.7")

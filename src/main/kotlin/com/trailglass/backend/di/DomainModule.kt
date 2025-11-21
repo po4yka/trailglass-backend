@@ -8,7 +8,7 @@ import com.trailglass.backend.settings.ExposedSettingsService
 import com.trailglass.backend.settings.SettingsService
 import com.trailglass.backend.stubs.StubExportService
 import com.trailglass.backend.stubs.StubPhotoService
-import com.trailglass.backend.stubs.StubSyncService
+import com.trailglass.backend.sync.SyncServiceImpl
 import com.trailglass.backend.sync.SyncService
 import com.trailglass.backend.trip.ExposedTripService
 import com.trailglass.backend.trip.TripService
@@ -19,7 +19,7 @@ import com.trailglass.backend.visit.PlaceVisitService
 import org.koin.dsl.module
 
 val domainModule = module {
-    single<SyncService> { StubSyncService() }
+    single<SyncService> { SyncServiceImpl(get()) }
     single<LocationService> { ExposedLocationService(get()) }
     single<TripService> { ExposedTripService(get()) }
     single<PhotoService> { StubPhotoService() }

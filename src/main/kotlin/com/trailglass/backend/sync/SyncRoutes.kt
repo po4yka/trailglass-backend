@@ -35,7 +35,7 @@ fun Route.syncRoutes() {
                 call.respond(syncService.applyDelta(request))
             }
 
-            post("/conflicts/resolve") {
+            post("/resolve-conflict") {
                 val request = call.receive<ConflictResolutionRequest>()
                 call.respond(syncService.resolveConflict(request))
             }
