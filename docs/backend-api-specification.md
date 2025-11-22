@@ -18,6 +18,39 @@ This document specifies the REST API for the TrailGlass location tracking applic
 
 All API requests (except registration and login) require authentication via JWT Bearer tokens.
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant DB
+
+    Note over Client,DB: Initial Registration/Login
+    Client->>Server: POST /auth/register or /auth/login<br/>{email, password, deviceInfo}
+    Server->>DB: Verify credentials (Argon2)
+    Server->>DB: Create/update device record
+    Server->>DB: Generate refresh token
+    DB-->>Server: User + device data
+    Server-->>Client: {accessToken (15min), refreshToken (30d)}
+
+    Note over Client,DB: Making Authenticated Requests
+    Client->>Server: GET /api/v1/trips<br/>Authorization: Bearer <accessToken><br/>X-Device-ID: <deviceId>
+    Server->>Server: Verify JWT signature & expiry
+    Server-->>Client: 200 OK {trips data}
+
+    Note over Client,DB: Token Refresh Flow
+    Client->>Server: POST /auth/refresh<br/>{refreshToken}
+    Server->>DB: Validate refresh token & device
+    Server->>DB: Generate new tokens
+    DB-->>Server: New token pair
+    Server-->>Client: {accessToken, refreshToken}
+
+    Note over Client,DB: Logout
+    Client->>Server: POST /auth/logout<br/>{deviceId}
+    Server->>DB: Invalidate refresh token
+    Server->>DB: Update device session
+    Server-->>Client: 204 No Content
+```
+
 ### Headers
 
 ```
@@ -988,37 +1021,6 @@ Future versions will support webhooks for real-time sync notifications:
 
 ---
 
-## Notes for Backend Implementation
+## Implementation Status
 
-1. **Database Indexing:**
-   - Index `userId` + `timestamp` for location queries
-   - Index `userId` + `serverVersion` for delta sync
-   - Index `deviceId` for conflict detection
-
-2. **Conflict Resolution Strategy:**
-   - Use vector clocks or Lamport timestamps
-   - Last-write-wins with device ID tiebreaker for settings
-   - Manual resolution for place visits and trips
-
-3. **Photo Storage:**
-   - Use object storage (S3, GCS, etc.)
-   - Generate thumbnails on upload
-   - Implement CDN for photo delivery
-
-4. **Background Jobs:**
-   - Clean up expired exports (7 days)
-   - Generate user statistics daily
-   - Optimize location data (compress old data)
-
-5. **Security:**
-   - Rate limiting per user and IP
-   - Input validation and sanitization
-   - SQL injection protection
-   - HTTPS only
-   - CORS configuration for web clients
-
-6. **Scalability:**
-   - Horizontal scaling for API servers
-   - Database replication for reads
-   - Message queue for async operations (exports, etc.)
-   - Cache frequently accessed data (settings, user profiles)
+Backend implementation is complete. See `ARCHITECTURE.md` for system design and `ENVIRONMENT_VARIABLES.md` for configuration.
