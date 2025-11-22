@@ -1,5 +1,6 @@
 package com.trailglass.backend.plugins
 
+import com.trailglass.backend.admin.adminUserRoutes
 import com.trailglass.backend.auth.authRoutes
 import com.trailglass.backend.export.exportRoutes
 import com.trailglass.backend.location.locationRoutes
@@ -113,6 +114,7 @@ fun Application.configureRouting() {
                 exportRoutes()
                 placeVisitRoutes()
                 userProfileRoutes()
+                adminUserRoutes()
             }
         }
     }

@@ -35,3 +35,9 @@ backups/
 
 # Misc
 *.local.properties
+
+# Admin panel
+admin/node_modules/
+admin/dist/
+admin/dist-ssr/
+admin/.env

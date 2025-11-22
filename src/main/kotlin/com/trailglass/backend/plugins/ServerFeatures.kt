@@ -1,6 +1,8 @@
 package com.trailglass.backend.plugins
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.application.ApplicationStarted
@@ -10,6 +12,7 @@ import io.ktor.server.plugins.callid.callId
 import io.ktor.server.plugins.callid.generate
 import io.ktor.server.plugins.callid.header
 import io.ktor.server.plugins.callloging.CallLogging
+import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.rateLimiter
 import io.ktor.server.request.path
@@ -54,6 +57,24 @@ internal fun ComponentHealth.toResponse(): ComponentHealthResponse {
 
 fun Application.configureServerFeatures(startTimestamp: Long, rateLimitPerMinute: Long) {
     attributes.put(StartupTimeKey, startTimestamp)
+
+    install(CORS) {
+        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowMethod(HttpMethod.Patch)
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader("X-Device-ID")
+        allowHeader("X-App-Version")
+        allowHeader("X-Request-ID")
+        allowCredentials = true
+
+        // Allow localhost for development
+        anyHost()
+    }
 
     install(CallLogging) {
         level = Level.INFO

@@ -23,7 +23,7 @@ fun Route.exportRoutes() {
     val exportService by inject<ExportService>()
 
     rateLimit(DefaultFeatureRateLimit) {
-        route("/export") {
+        route("/exports") {
             post("/request") {
                 val request = call.receive<ExportRequest>()
                 val job = exportService.requestExport(request)

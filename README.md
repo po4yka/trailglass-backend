@@ -10,12 +10,13 @@ Implements the public `/api/v1` contract (see mobile repo docs) using Kotlin + K
 - Device tracking and export jobs
 
 ## Tech Stack
-- Kotlin 2.x + Gradle
-- Ktor 3 (server, JSON, JWT auth, rate limiting)
-- Exposed ORM + PostgreSQL 15 managed via Flyway migrations
-- Optional MinIO/S3 storage for photo and export blobs (fallback to Postgres `bytea` for MVP)
-- Argon2 password hashing, kotlinx.serialization for shared DTOs
-- Dockerized deployment (single VM/Fly.io/Raspberry Pi)
+- **Backend:** Kotlin 2.x + Gradle
+- **Web Framework:** Ktor 3 (server, JSON, JWT auth, rate limiting, CORS)
+- **Database:** Exposed ORM + PostgreSQL 15 managed via Flyway migrations
+- **Storage:** Optional MinIO/S3 storage for photo and export blobs (fallback to Postgres `bytea` for MVP)
+- **Security:** Argon2 password hashing, kotlinx.serialization for shared DTOs
+- **Admin Panel:** React + Refine + TypeScript + Ant Design
+- **Deployment:** Dockerized deployment (single VM/Fly.io/Raspberry Pi)
 
 ## Running locally
 - Copy the sample env files into place and adjust secrets:
@@ -28,8 +29,14 @@ Implements the public `/api/v1` contract (see mobile repo docs) using Kotlin + K
   ```bash
   docker compose up -d --build
   ```
+- (Optional) Start the admin panel:
+  ```bash
+  docker compose --profile admin up -d
+  ```
+  Access at `http://localhost:3000`
 - Health/ops checks:
   - App: `curl http://localhost:8080/health`
+  - Admin: `http://localhost:3000` (if started with `--profile admin`)
   - Metrics (optional, Cloudflare Access service token recommended): `curl -H "CF-Access-Client-Id: $ID" -H "CF-Access-Client-Secret: $SECRET" http://localhost:8080/metrics`
   - Postgres: `docker compose exec postgres pg_isready`
   - MinIO: `curl http://localhost:9000/minio/health/live`
@@ -44,6 +51,7 @@ Implements the public `/api/v1` contract (see mobile repo docs) using Kotlin + K
 ## Documentation
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) – module breakdown, data model, deployment guidance
 - [`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md) – Raspberry Pi + Cloudflare Tunnel instructions
+- [`admin/README.md`](admin/README.md) – Admin panel setup and usage
 - Refer to the Trailglass mobile repository for the canonical API specification and product requirements.
 
 > **Status:** Deployment scaffolding, health, migrations, and ops tooling are in place; feature endpoints are being implemented.
