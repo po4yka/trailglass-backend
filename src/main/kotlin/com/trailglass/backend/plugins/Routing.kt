@@ -23,9 +23,13 @@ import org.koin.ktor.ext.inject
 import com.trailglass.backend.plugins.AuthJwt
 import com.trailglass.backend.plugins.AuthRateLimit
 import com.trailglass.backend.storage.ObjectStorageService
+import com.trailglass.backend.health.HealthCheckService
+import com.trailglass.backend.health.HealthStatus
+import io.ktor.http.HttpStatusCode
 
 fun Application.configureRouting() {
     val storage by inject<ObjectStorageService>()
+    val healthCheckService by inject<HealthCheckService>()
 
     routing {
         metricsRoutes()
@@ -35,13 +39,57 @@ fun Application.configureRouting() {
 
             get("/health") {
                 val uptime = (System.currentTimeMillis() - attributes[StartupTimeKey]) / 1000
+                val components = healthCheckService.checkAllComponents()
+                val overallStatus = healthCheckService.determineOverallStatus(components)
+
+                val statusCode = when (overallStatus) {
+                    HealthStatus.HEALTHY -> HttpStatusCode.OK
+                    HealthStatus.DEGRADED -> HttpStatusCode.OK
+                    HealthStatus.UNHEALTHY -> HttpStatusCode.ServiceUnavailable
+                    else -> HttpStatusCode.OK
+                }
+
                 call.respond(
+                    statusCode,
                     HealthResponse(
-                        status = "ok",
+                        status = when (overallStatus) {
+                            HealthStatus.HEALTHY -> "healthy"
+                            HealthStatus.DEGRADED -> "degraded"
+                            HealthStatus.UNHEALTHY -> "unhealthy"
+                            else -> "ok"
+                        },
                         uptimeSeconds = uptime,
-                        version = environment.config.propertyOrNull("ktor.deployment.version")?.getString() ?: "dev"
+                        version = environment.config.propertyOrNull("ktor.deployment.version")?.getString() ?: "dev",
+                        components = components.mapValues { it.value.toResponse() }
                     )
                 )
+            }
+
+            get("/health/live") {
+                // Liveness probe - just check if the application is running
+                // This should always return 200 unless the app is completely dead
+                call.respond(
+                    HttpStatusCode.OK,
+                    mapOf("status" to "alive")
+                )
+            }
+
+            get("/health/ready") {
+                // Readiness probe - check if the app is ready to serve traffic
+                // Database and storage must be UP for the app to be ready
+                val isReady = healthCheckService.isReady()
+
+                if (isReady) {
+                    call.respond(
+                        HttpStatusCode.OK,
+                        mapOf("status" to "ready")
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.ServiceUnavailable,
+                        mapOf("status" to "not ready")
+                    )
+                }
             }
 
             inlineStorageRoutes(storage)

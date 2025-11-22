@@ -4,8 +4,10 @@ import com.auth0.jwt.JWT
 import com.trailglass.backend.common.AuthTokens
 import com.trailglass.backend.common.UserProfile
 import com.trailglass.backend.plugins.ApiException
+import com.trailglass.backend.scheduler.RecurringTaskScheduler
 import io.ktor.http.HttpStatusCode
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -15,15 +17,16 @@ import de.mkammerer.argon2.Argon2Factory
 class DefaultAuthService(
     private val jwtProvider: JwtProvider,
     private val emailService: com.trailglass.backend.email.EmailService,
+    private val passwordResetTokenRepository: PasswordResetTokenRepository,
     private val clock: Clock = Clock.systemUTC(),
     private val refreshTokenTtlSeconds: Long = JwtProvider.DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS,
+    private val passwordResetTokenTtl: Duration = Duration.ofHours(1),
     private val argon2: Argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id),
 ) : AuthService {
 
     private val usersByEmail = ConcurrentHashMap<String, StoredUser>()
     private val usersById = ConcurrentHashMap<UUID, StoredUser>()
     private val refreshTokens = ConcurrentHashMap<String, StoredRefreshToken>()
-    private val passwordResetTokens = ConcurrentHashMap<String, UUID>()
 
     override suspend fun register(request: RegisterRequest): AuthSession {
         val existing = usersByEmail[request.email.lowercase()]
@@ -99,7 +102,14 @@ class DefaultAuthService(
     override suspend fun requestPasswordReset(email: String) {
         val user = usersByEmail[email.lowercase()] ?: return
         val token = UUID.randomUUID().toString()
-        passwordResetTokens[token] = user.id
+        val expiresAt = clock.instant().plus(passwordResetTokenTtl)
+
+        // Store the token in the database
+        passwordResetTokenRepository.create(
+            userId = user.id,
+            token = token,
+            expiresAt = expiresAt
+        )
 
         // Send password reset email asynchronously
         // The reset URL should be constructed by the client/frontend
@@ -121,13 +131,31 @@ class DefaultAuthService(
     }
 
     override suspend fun resetPassword(token: String, newPassword: String) {
-        val userId = passwordResetTokens.remove(token)
+        // Find the token in the database
+        val resetToken = passwordResetTokenRepository.findByToken(token)
             ?: throw ApiException(HttpStatusCode.BadRequest, "invalid_reset_token", "The reset token is invalid or expired")
 
-        val user = usersById[userId] ?: throw ApiException(HttpStatusCode.NotFound, "user_not_found", "User not found")
+        // Validate token expiration
+        if (resetToken.isExpired(clock.instant())) {
+            throw ApiException(HttpStatusCode.BadRequest, "invalid_reset_token", "The reset token is invalid or expired")
+        }
+
+        // Validate token hasn't been consumed
+        if (resetToken.isConsumed()) {
+            throw ApiException(HttpStatusCode.BadRequest, "invalid_reset_token", "The reset token is invalid or expired")
+        }
+
+        // Find the user
+        val user = usersById[resetToken.userId]
+            ?: throw ApiException(HttpStatusCode.NotFound, "user_not_found", "User not found")
+
+        // Update the password
         val updated = user.copy(passwordHash = hashPassword(newPassword))
         usersByEmail[user.email] = updated
         usersById[user.id] = updated
+
+        // Mark the token as consumed
+        passwordResetTokenRepository.markAsConsumed(resetToken.id)
     }
 
     private fun buildSession(user: StoredUser, deviceId: UUID, lastSync: Instant? = null): AuthSession {
@@ -181,6 +209,16 @@ class DefaultAuthService(
             argon2.verify(hash, password.toCharArray())
         } catch (ex: Exception) {
             false
+        }
+    }
+
+    fun scheduleTokenCleanup(scheduler: RecurringTaskScheduler, cleanupJob: PasswordResetTokenCleanupJob) {
+        scheduler.schedule(
+            name = "password-reset-token-cleanup",
+            interval = Duration.ofHours(6),
+            initialDelay = Duration.ofMinutes(5),
+        ) {
+            cleanupJob.cleanupExpired()
         }
     }
 }

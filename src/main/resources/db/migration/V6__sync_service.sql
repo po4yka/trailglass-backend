@@ -1,3 +1,7 @@
+-- Sync service tables for generic data synchronization
+-- Note: This is separate from the sync_versions table in V2, which tracks per-entity sync state.
+-- These tables provide a more flexible sync mechanism for arbitrary data payloads.
+
 CREATE TABLE IF NOT EXISTS sync_version_counters (
     user_id UUID PRIMARY KEY REFERENCES users(id),
     current_version BIGINT NOT NULL DEFAULT 0,

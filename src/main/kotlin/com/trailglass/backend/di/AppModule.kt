@@ -12,4 +12,4 @@ fun appModule(config: AppConfig, dataSource: DataSource, flyway: Flyway) =
     module {
         single { config }
         single { flyway }
-    } + persistenceModule(dataSource) + authModule + storageModule + metricsModule + domainModule + emailModule
+    } + persistenceModule(dataSource) + authModule + storageModule + metricsModule + domainModule + emailModule + healthModule

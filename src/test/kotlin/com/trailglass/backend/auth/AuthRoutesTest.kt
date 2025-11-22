@@ -240,7 +240,13 @@ class AuthRoutesTest {
                 module {
                     single { config }
                     single { JwtProvider(get()) }
-                    single<AuthService> { DefaultAuthService(get(), refreshTokenTtlSeconds = refreshTtlSeconds) }
+                    single<com.trailglass.backend.email.EmailService> {
+                        com.trailglass.backend.email.ConsoleEmailService()
+                    }
+                    single<PasswordResetTokenRepository> {
+                        InMemoryPasswordResetTokenRepository()
+                    }
+                    single<AuthService> { DefaultAuthService(get(), get(), get(), refreshTokenTtlSeconds = refreshTtlSeconds) }
                 }
             )
         }

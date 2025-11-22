@@ -1,3 +1,7 @@
+-- Photo storage tables
+-- Note: This is separate from photo_attachments in V2, which is for attaching photos to memories/journals.
+-- The photos table is for direct photo uploads and management with storage backends (S3/Postgres).
+
 CREATE TABLE IF NOT EXISTS photos (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id),
