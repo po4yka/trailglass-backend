@@ -11,7 +11,8 @@ import java.util.UUID
 
 interface TripService {
     suspend fun upsertTrip(request: TripUpsertRequest): TripRecord
-    suspend fun listTrips(userId: UUID, updatedAfter: Instant?, limit: Int = 100): List<TripRecord>
+    suspend fun updateTrip(userId: UUID, tripId: UUID, request: TripUpdateRequest, expectedVersion: Long?): TripRecord
+    suspend fun listTrips(userId: UUID, updatedAfter: Instant?, startDate: Instant? = null, endDate: Instant? = null, limit: Int = 100, offset: Int = 0): List<TripRecord>
     suspend fun getTrip(userId: UUID, tripId: UUID): TripRecord
     suspend fun deleteTrip(userId: UUID, tripId: UUID): TripRecord
 }
@@ -32,4 +33,13 @@ data class TripRecord(
 @Serializable
 data class TripUpsertRequest(
     val trip: TripRecord
+)
+
+@Serializable
+data class TripUpdateRequest(
+    val name: String? = null,
+    val startDate: Instant? = null,
+    val endDate: Instant? = null,
+    val notes: String? = null,
+    val expectedVersion: Long? = null,
 )

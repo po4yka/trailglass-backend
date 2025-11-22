@@ -1,5 +1,6 @@
 package com.trailglass.backend.export
 
+import com.trailglass.backend.export.ExportFormat
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -16,6 +17,11 @@ data class ExportJobRecord(
     val downloadKey: String? = null,
     val expiresAt: Instant? = null,
     val email: String? = null,
+    val format: ExportFormat = ExportFormat.JSON,
+    val includePhotos: Boolean = false,
+    val startDate: Instant? = null,
+    val endDate: Instant? = null,
+    val fileSize: Long? = null,
 )
 
 interface ExportJobRepository {

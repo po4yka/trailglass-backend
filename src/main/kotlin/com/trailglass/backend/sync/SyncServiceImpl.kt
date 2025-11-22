@@ -1,14 +1,13 @@
 package com.trailglass.backend.sync
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.trailglass.backend.persistence.ExposedRepository
+import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.forUpdate
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.Clock
 import java.util.UUID
@@ -17,11 +16,11 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 
 class SyncServiceImpl(
-    private val database: org.jetbrains.exposed.sql.Database,
+    database: Database,
     private val clock: Clock = Clock.systemUTC(),
-) : SyncService {
+) : ExposedRepository(database), SyncService {
 
-    override suspend fun getStatus(deviceId: UUID, userId: UUID): SyncStatus = dbQuery {
+    override suspend fun getStatus(deviceId: UUID, userId: UUID): SyncStatus = suspendTx {
         val latestVersion = currentVersion(userId)
         val lastSync = DeviceSyncStateTable
             .select { (DeviceSyncStateTable.deviceId eq deviceId) and (DeviceSyncStateTable.userId eq userId) }
@@ -35,7 +34,7 @@ class SyncServiceImpl(
         )
     }
 
-    override suspend fun applyDelta(request: SyncDeltaRequest): SyncDeltaResponse = dbQuery {
+    override suspend fun applyDelta(request: SyncDeltaRequest): SyncDeltaResponse = suspendTx {
         val applied = mutableListOf<SyncEnvelope>()
         val conflicts = mutableListOf<SyncConflict>()
 
@@ -91,7 +90,7 @@ class SyncServiceImpl(
         )
     }
 
-    override suspend fun resolveConflict(request: ConflictResolutionRequest): ConflictResolutionResult = dbQuery {
+    override suspend fun resolveConflict(request: ConflictResolutionRequest): ConflictResolutionResult = suspendTx {
         val conflict = SyncConflictsTable
             .select { (SyncConflictsTable.id eq request.conflictId) and (SyncConflictsTable.userId eq request.userId) }
             .singleOrNull()
@@ -254,7 +253,4 @@ class SyncServiceImpl(
         }
     }
 
-    private suspend fun <T> dbQuery(block: () -> T): T = withContext(Dispatchers.IO) {
-        transaction(database) { block() }
-    }
 }

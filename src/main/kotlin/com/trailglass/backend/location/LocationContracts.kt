@@ -11,7 +11,15 @@ import java.util.UUID
 
 interface LocationService {
     suspend fun upsertBatch(request: LocationBatchRequest): LocationBatchResult
-    suspend fun getLocations(userId: UUID, since: Instant?, limit: Int = 200): List<LocationSample>
+    suspend fun getLocations(
+        userId: UUID,
+        since: Instant? = null,
+        startTime: Instant? = null,
+        endTime: Instant? = null,
+        minAccuracy: Float? = null,
+        limit: Int = 200,
+        offset: Int = 0
+    ): List<LocationSample>
     suspend fun getLocation(userId: UUID, locationId: UUID): LocationSample
     suspend fun deleteLocations(userId: UUID, ids: List<UUID>): LocationBatchResult
 }

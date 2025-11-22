@@ -22,9 +22,11 @@ import io.ktor.server.plugins.ratelimit.rateLimit
 import org.koin.ktor.ext.inject
 import com.trailglass.backend.plugins.AuthJwt
 import com.trailglass.backend.plugins.AuthRateLimit
+import com.trailglass.backend.plugins.HttpsEnforcementPlugin
 import com.trailglass.backend.storage.ObjectStorageService
 import com.trailglass.backend.health.HealthCheckService
 import com.trailglass.backend.health.HealthStatus
+import com.trailglass.backend.config.AppConfig
 import io.ktor.http.HttpStatusCode
 
 fun Application.configureRouting() {
@@ -36,6 +38,10 @@ fun Application.configureRouting() {
 
         route("/api/v1") {
             install(HeaderValidationPlugin)
+            install(HttpsEnforcementPlugin) {
+                val config by inject<AppConfig>()
+                this.allowPlainHttp = config.allowPlainHttp
+            }
 
             get("/health") {
                 val uptime = (System.currentTimeMillis() - attributes[StartupTimeKey]) / 1000

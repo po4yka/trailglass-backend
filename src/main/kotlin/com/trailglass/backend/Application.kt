@@ -6,10 +6,12 @@ import com.trailglass.backend.di.appModule
 import com.trailglass.backend.persistence.DatabaseFactory
 import com.trailglass.backend.persistence.FlywayMigrator
 import com.trailglass.backend.plugins.configureHeaderValidation
+import com.trailglass.backend.plugins.configureHttpsEnforcement
 import com.trailglass.backend.plugins.configureMonitoring
 import com.trailglass.backend.plugins.configureRouting
 import com.trailglass.backend.plugins.configureSerialization
 import com.trailglass.backend.plugins.configureServerFeatures
+import com.trailglass.backend.plugins.configureStatusHandling
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
@@ -45,8 +47,10 @@ fun main() {
 fun Application.module() {
     val config by inject<AppConfig>()
     configureSerialization()
-    configureServerFeatures(startTimestamp)
+    configureServerFeatures(startTimestamp, config.rateLimitPerMinute)
+    configureStatusHandling()
     configureMonitoring(config)
     configureHeaderValidation()
+    configureHttpsEnforcement(config)
     configureRouting()
 }

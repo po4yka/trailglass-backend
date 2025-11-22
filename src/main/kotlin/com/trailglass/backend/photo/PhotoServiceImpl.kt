@@ -57,6 +57,44 @@ class PhotoServiceImpl(
         return PhotoUploadPlan(metadata, upload)
     }
 
+    override suspend fun uploadPhoto(userId: UUID, deviceId: UUID, fileBytes: ByteArray, fileName: String, mimeType: String, metadata: PhotoMetadataRequest?): PhotoRecord {
+        val photoId = metadata?.id ?: UUID.randomUUID()
+        val storageKey = photoStorageKey(userId, photoId, fileName)
+        val now = Instant.now()
+
+        // Create photo metadata
+        val photoMetadata = repository.create(
+            photoId = photoId,
+            userId = userId,
+            deviceId = deviceId,
+            fileName = fileName,
+            mimeType = mimeType,
+            sizeBytes = fileBytes.size.toLong(),
+            storageKey = storageKey,
+            storageBackend = storageConfig.backend.name.lowercase(),
+        )
+
+        // Upload photo binary
+        storageService.putBytes(storageKey, mimeType, fileBytes)
+
+        // Mark as uploaded
+        val uploadedMetadata = repository.markUploaded(photoId, userId)
+            ?: throw IllegalArgumentException("Photo not found after creation")
+
+        // Generate thumbnail asynchronously
+        scope.launch {
+            generateAndStoreThumbnail(uploadedMetadata)
+        }
+
+        // Return photo record with presigned URLs
+        val download = storageService.presignDownload(storageKey)
+        return PhotoRecord(
+            photo = uploadedMetadata,
+            download = download,
+            thumbnailUrl = null // Will be available after thumbnail generation
+        )
+    }
+
     override suspend fun confirmUpload(photoId: UUID, userId: UUID): PhotoRecord {
         val metadata = repository.markUploaded(photoId, userId)
             ?: throw IllegalArgumentException("Photo not found for user")

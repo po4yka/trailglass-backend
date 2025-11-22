@@ -7,6 +7,8 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.greaterEq
+import org.jetbrains.exposed.sql.lessEq
+import org.jetbrains.exposed.sql.less
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
@@ -63,17 +65,22 @@ class ExposedPlaceVisitService(database: Database) : ExposedRepository(database)
     override suspend fun listVisits(
         userId: UUID,
         updatedAfter: Instant?,
+        startTime: Instant?,
+        endTime: Instant?,
         category: String?,
         isFavorite: Boolean?,
-        limit: Int
+        limit: Int,
+        offset: Int
     ): List<PlaceVisit> = tx {
         val query = PlaceVisitsTable
             .select { PlaceVisitsTable.userId eq userId }
             .let { base -> updatedAfter?.let { base.andWhere { PlaceVisitsTable.updatedAt greaterEq it } } ?: base }
+            .let { base -> startTime?.let { base.andWhere { PlaceVisitsTable.arrivedAt greaterEq it } } ?: base }
+            .let { base -> endTime?.let { base.andWhere { PlaceVisitsTable.arrivedAt less it } } ?: base }
             .let { base -> category?.let { base.andWhere { PlaceVisitsTable.category eq it } } ?: base }
             .let { base -> isFavorite?.let { base.andWhere { PlaceVisitsTable.isFavorite eq it } } ?: base }
             .orderBy(PlaceVisitsTable.updatedAt to false)
-            .limit(limit)
+            .limit(limit, offset.toLong())
 
         query.map { row ->
             PlaceVisit(
@@ -91,6 +98,32 @@ class ExposedPlaceVisitService(database: Database) : ExposedRepository(database)
                 serverVersion = row[PlaceVisitsTable.serverVersion],
             )
         }
+    }
+
+    override suspend fun updateVisit(userId: UUID, visitId: UUID, request: PlaceVisitUpdateRequest, expectedVersion: Long?): PlaceVisit = tx {
+        val existing = PlaceVisitsTable
+            .select { (PlaceVisitsTable.id eq visitId) and (PlaceVisitsTable.userId eq userId) }
+            .singleOrNull()
+            ?: throw IllegalArgumentException("Place visit not found for user")
+
+        val currentVersion = existing[PlaceVisitsTable.serverVersion]
+        if (expectedVersion != null && currentVersion != expectedVersion) {
+            throw IllegalArgumentException("Entity was modified by another device. Current version: $currentVersion, expected: $expectedVersion")
+        }
+
+        val now = Instant.now()
+        val version = nextVersion()
+
+        PlaceVisitsTable.update({ (PlaceVisitsTable.id eq visitId) and (PlaceVisitsTable.userId eq userId) }) { row ->
+            request.isFavorite?.let { row[PlaceVisitsTable.isFavorite] = it }
+            request.category?.let { row[PlaceVisitsTable.category] = it }
+            request.arrivedAt?.let { row[PlaceVisitsTable.arrivedAt] = it }
+            request.departedAt?.let { row[PlaceVisitsTable.departedAt] = it }
+            row[PlaceVisitsTable.updatedAt] = now
+            row[PlaceVisitsTable.serverVersion] = version
+        }
+
+        getVisit(userId, visitId)
     }
 
     override suspend fun getVisit(userId: UUID, visitId: UUID): PlaceVisit = tx {

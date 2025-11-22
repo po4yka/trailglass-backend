@@ -24,9 +24,19 @@ fun Route.exportRoutes() {
 
     rateLimit(DefaultFeatureRateLimit) {
         route("/export") {
+            post("/request") {
+                val request = call.receive<ExportRequest>()
+                val job = exportService.requestExport(request)
+                call.respond(HttpStatusCode.Accepted, mapOf(
+                    "exportId" to job.id,
+                    "status" to job.status.name,
+                    "estimatedCompletionTime" to (job.updatedAt.plusSeconds(300)).toString()
+                ))
+            }
+
             post {
                 val request = call.receive<ExportRequest>()
-                call.respond(HttpStatusCode.Accepted, exportService.requestExport(request.userId, request.deviceId, request.email))
+                call.respond(HttpStatusCode.Accepted, exportService.requestExport(request))
             }
 
             get("/{id}/status") {
@@ -44,9 +54,3 @@ fun Route.exportRoutes() {
     }
 }
 
-@Serializable
-private data class ExportRequest(
-    val userId: UUID,
-    val deviceId: UUID,
-    val email: String? = null,
-)

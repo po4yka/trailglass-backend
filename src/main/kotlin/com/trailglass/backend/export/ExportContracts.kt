@@ -10,8 +10,25 @@ import java.time.Instant
 import java.util.UUID
 
 interface ExportService {
-    suspend fun requestExport(userId: UUID, deviceId: UUID, email: String? = null): ExportJob
+    suspend fun requestExport(request: ExportRequest): ExportJob
     suspend fun getStatus(exportId: UUID, userId: UUID): ExportJob
+}
+
+@Serializable
+data class ExportRequest(
+    val userId: UUID,
+    val deviceId: UUID,
+    val email: String? = null,
+    val format: ExportFormat = ExportFormat.JSON,
+    val includePhotos: Boolean = false,
+    val startDate: Instant? = null,
+    val endDate: Instant? = null,
+)
+
+@Serializable
+enum class ExportFormat {
+    JSON,
+    ZIP,
 }
 
 @Serializable
@@ -23,7 +40,8 @@ data class ExportJob(
     val createdAt: Instant,
     val updatedAt: Instant,
     val downloadUrl: String? = null,
-    val expiresAt: Instant? = null
+    val expiresAt: Instant? = null,
+    val fileSize: Long? = null,
 )
 
 @Serializable

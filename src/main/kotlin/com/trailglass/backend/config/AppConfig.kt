@@ -15,6 +15,7 @@ data class AppConfig(
     val rateLimitPerMinute: Long,
     val enableMetrics: Boolean,
     val autoMigrate: Boolean,
+    val allowPlainHttp: Boolean,
     val storage: StorageConfig,
     val cloudflareAccess: CloudflareAccessConfig?,
     val email: EmailConfig,
@@ -79,6 +80,8 @@ object ConfigLoader {
 
         val enableMetrics = env("ENABLE_METRICS")?.toBooleanStrictOrNull() ?: false
         val autoMigrate = env("FLYWAY_AUTO_MIGRATE")?.toBooleanStrictOrNull()
+            ?: environment.lowercase() != "production"
+        val allowPlainHttp = env("ALLOW_PLAIN_HTTP")?.toBooleanStrictOrNull()
             ?: environment.lowercase() != "production"
 
         val storageBackend = env("STORAGE_BACKEND")?.lowercase()
@@ -154,6 +157,7 @@ object ConfigLoader {
             rateLimitPerMinute = rateLimit,
             enableMetrics = enableMetrics,
             autoMigrate = autoMigrate,
+            allowPlainHttp = allowPlainHttp,
             storage = storage,
             cloudflareAccess = cloudflareAccess,
             email = email,

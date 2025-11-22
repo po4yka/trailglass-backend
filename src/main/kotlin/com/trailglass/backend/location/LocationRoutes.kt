@@ -31,14 +31,18 @@ fun Route.locationRoutes() {
             get {
                 val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
                 val since = call.request.queryParameters["since"]?.let(Instant::parse)
+                val startTime = call.request.queryParameters["startTime"]?.let(Instant::parse)
+                val endTime = call.request.queryParameters["endTime"]?.let(Instant::parse)
+                val minAccuracy = call.request.queryParameters["minAccuracy"]?.toFloatOrNull()
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 200
+                val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
 
                 if (userId == null) {
                     call.respond(HttpStatusCode.BadRequest, "userId is required")
                     return@get
                 }
 
-                call.respond(locationService.getLocations(userId, since, limit))
+                call.respond(locationService.getLocations(userId, since, startTime, endTime, minAccuracy, limit, offset))
             }
 
             get("/{id}") {

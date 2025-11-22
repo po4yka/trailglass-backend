@@ -1,15 +1,16 @@
 package com.trailglass.backend.routes
 
+import com.trailglass.backend.plugins.ApiException
+import com.trailglass.backend.plugins.ErrorResponse
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.Serializable
 
 private const val DEVICE_HEADER = "X-Device-ID"
 private const val APP_VERSION_HEADER = "X-App-Version"
 
-@Serializable
+@kotlinx.serialization.Serializable
 data class HealthStatus(val status: String = "ok")
 
 fun Route.apiRoutes() {
@@ -18,9 +19,16 @@ fun Route.apiRoutes() {
         val appVersion = call.request.headers[APP_VERSION_HEADER]
 
         if (deviceId.isNullOrBlank() || appVersion.isNullOrBlank()) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing required headers"))
-            finish()
-            return@intercept
+            val missingHeaders = mutableListOf<String>()
+            if (deviceId.isNullOrBlank()) missingHeaders.add(DEVICE_HEADER)
+            if (appVersion.isNullOrBlank()) missingHeaders.add(APP_VERSION_HEADER)
+
+            throw ApiException(
+                status = HttpStatusCode.BadRequest,
+                code = "missing_headers",
+                message = "Missing required headers: ${missingHeaders.joinToString(", ")}",
+                details = mapOf("missingHeaders" to missingHeaders.joinToString(", "))
+            )
         }
     }
 

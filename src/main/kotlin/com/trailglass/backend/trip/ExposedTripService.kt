@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.greaterEq
+import org.jetbrains.exposed.sql.lessEq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
@@ -49,12 +50,39 @@ class ExposedTripService(database: Database) : ExposedRepository(database), Trip
         record
     }
 
-    override suspend fun listTrips(userId: UUID, updatedAfter: Instant?, limit: Int): List<TripRecord> = tx {
+    override suspend fun updateTrip(userId: UUID, tripId: UUID, request: TripUpdateRequest, expectedVersion: Long?): TripRecord = tx {
+        val existing = TripsTable
+            .select { (TripsTable.id eq tripId) and (TripsTable.userId eq userId) }
+            .singleOrNull()
+            ?: throw IllegalArgumentException("Trip not found for user")
+
+        val currentVersion = existing[TripsTable.serverVersion]
+        if (expectedVersion != null && currentVersion != expectedVersion) {
+            throw IllegalArgumentException("Entity was modified by another device. Current version: $currentVersion, expected: $expectedVersion")
+        }
+
+        val now = Instant.now()
+        val version = nextVersion()
+
+        TripsTable.update({ (TripsTable.id eq tripId) and (TripsTable.userId eq userId) }) { row ->
+            request.name?.let { row[name] = it }
+            request.startDate?.let { row[startDate] = it }
+            request.endDate?.let { row[endDate] = it }
+            row[updatedAt] = now
+            row[serverVersion] = version
+        }
+
+        getTrip(userId, tripId)
+    }
+
+    override suspend fun listTrips(userId: UUID, updatedAfter: Instant?, startDate: Instant?, endDate: Instant?, limit: Int, offset: Int): List<TripRecord> = tx {
         val query = TripsTable
             .select { TripsTable.userId eq userId }
             .let { base -> updatedAfter?.let { base.andWhere { TripsTable.updatedAt greaterEq it } } ?: base }
+            .let { base -> startDate?.let { base.andWhere { TripsTable.startDate greaterEq it } } ?: base }
+            .let { base -> endDate?.let { base.andWhere { TripsTable.endDate lessEq it } } ?: base }
             .orderBy(TripsTable.updatedAt to false)
-            .limit(limit)
+            .limit(limit, offset.toLong())
 
         query.map { row ->
             TripRecord(

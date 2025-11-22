@@ -25,16 +25,20 @@ class DefaultExportService(
 ) : ExportService {
     private val logger = LoggerFactory.getLogger(DefaultExportService::class.java)
 
-    override suspend fun requestExport(userId: UUID, deviceId: UUID, email: String?): ExportJob {
+    override suspend fun requestExport(request: ExportRequest): ExportJob {
         val now = Instant.now()
         val job = ExportJobRecord(
             id = UUID.randomUUID(),
-            userId = userId,
-            deviceId = deviceId,
+            userId = request.userId,
+            deviceId = request.deviceId,
             status = ExportStatus.PENDING,
             createdAt = now,
             updatedAt = now,
-            email = email,
+            email = request.email,
+            format = request.format,
+            includePhotos = request.includePhotos,
+            startDate = request.startDate,
+            endDate = request.endDate,
         )
 
         repository.save(job)
@@ -59,8 +63,16 @@ class DefaultExportService(
 
         try {
             val archiveBytes = buildArchive(running)
-            val key = "exports/${running.userId}/${running.id}.zip"
-            storage.putBytes(key, "application/zip", archiveBytes)
+            val extension = when (running.format) {
+                ExportFormat.JSON -> "json"
+                ExportFormat.ZIP -> "zip"
+            }
+            val key = "exports/${running.userId}/${running.id}.$extension"
+            val contentType = when (running.format) {
+                ExportFormat.JSON -> "application/json"
+                ExportFormat.ZIP -> "application/zip"
+            }
+            storage.putBytes(key, contentType, archiveBytes)
             val presigned = storage.presignDownload(key)
             val completion = running.copy(
                 status = ExportStatus.COMPLETED,
@@ -68,6 +80,7 @@ class DefaultExportService(
                 downloadKey = key,
                 updatedAt = Instant.now(),
                 expiresAt = Instant.now().plus(retention),
+                fileSize = archiveBytes.size.toLong(),
             )
 
             repository.save(completion)
@@ -92,23 +105,33 @@ class DefaultExportService(
         emailService.sendExportReadyEmail(email, completion.downloadUrl.orEmpty(), expiresAt)
     }
 
-    private fun buildArchive(record: ExportJobRecord): ByteArray {
+    private suspend fun buildArchive(record: ExportJobRecord): ByteArray {
         val payload = """
             {
               "userId": "${record.userId}",
               "deviceId": "${record.deviceId}",
-              "exportedAt": "${Instant.now()}"
+              "exportedAt": "${Instant.now()}",
+              "format": "${record.format}",
+              "includePhotos": ${record.includePhotos},
+              "startDate": "${record.startDate}",
+              "endDate": "${record.endDate}"
             }
         """.trimIndent().toByteArray(StandardCharsets.UTF_8)
 
-        val buffer = ByteArrayOutputStream()
-        ZipOutputStream(buffer).use { zip ->
-            zip.putNextEntry(ZipEntry("metadata.json"))
-            zip.write(payload)
-            zip.closeEntry()
+        return when (record.format) {
+            ExportFormat.JSON -> payload
+            ExportFormat.ZIP -> {
+                val buffer = ByteArrayOutputStream()
+                ZipOutputStream(buffer).use { zip ->
+                    zip.putNextEntry(ZipEntry("metadata.json"))
+                    zip.write(payload)
+                    zip.closeEntry()
+                    // TODO: Add actual data export based on includePhotos, startDate, endDate
+                    // This would involve fetching locations, trips, place visits, photos, etc.
+                }
+                buffer.toByteArray()
+            }
         }
-
-        return buffer.toByteArray()
     }
 
     fun scheduleHousekeeping(cleanupJob: ExportHousekeepingJob) {
@@ -130,5 +153,6 @@ class DefaultExportService(
         updatedAt = updatedAt,
         downloadUrl = downloadUrl,
         expiresAt = expiresAt,
+        fileSize = fileSize,
     )
 }

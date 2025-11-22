@@ -6,6 +6,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.greaterEq
+import org.jetbrains.exposed.sql.lessEq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
@@ -56,12 +57,23 @@ class ExposedLocationService(database: Database) : ExposedRepository(database), 
         LocationBatchResult(appliedCount = applied, serverVersion = serverVersion)
     }
 
-    override suspend fun getLocations(userId: UUID, since: Instant?, limit: Int): List<LocationSample> = tx {
+    override suspend fun getLocations(
+        userId: UUID,
+        since: Instant?,
+        startTime: Instant?,
+        endTime: Instant?,
+        minAccuracy: Float?,
+        limit: Int,
+        offset: Int
+    ): List<LocationSample> = tx {
         val query = LocationsTable
             .select { LocationsTable.userId eq userId }
             .let { base -> since?.let { base.andWhere { LocationsTable.updatedAt greaterEq it } } ?: base }
+            .let { base -> startTime?.let { base.andWhere { LocationsTable.recordedAt greaterEq it } } ?: base }
+            .let { base -> endTime?.let { base.andWhere { LocationsTable.recordedAt lessEq it } } ?: base }
+            .let { base -> minAccuracy?.let { base.andWhere { LocationsTable.accuracy lessEq it.toDouble() } } ?: base }
             .orderBy(LocationsTable.updatedAt to false)
-            .limit(limit)
+            .limit(limit, offset.toLong())
 
         query.map { row ->
             LocationSample(
@@ -70,7 +82,7 @@ class ExposedLocationService(database: Database) : ExposedRepository(database), 
                 deviceId = row[LocationsTable.deviceId],
                 latitude = row[LocationsTable.latitude],
                 longitude = row[LocationsTable.longitude],
-                accuracy = row[LocationsTable.accuracy],
+                accuracy = row[LocationsTable.accuracy]?.toFloat(),
                 recordedAt = row[LocationsTable.recordedAt],
                 updatedAt = row[LocationsTable.updatedAt],
                 deletedAt = row[LocationsTable.deletedAt],

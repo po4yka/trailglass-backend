@@ -12,20 +12,15 @@ import io.ktor.server.plugins.callid.header
 import io.ktor.server.plugins.callloging.CallLogging
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.rateLimiter
-import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
-import io.ktor.server.response.respond
 import org.slf4j.event.Level
 import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
-import com.trailglass.backend.plugins.MissingHeaderException
 import com.trailglass.backend.health.ComponentHealth
 import com.trailglass.backend.health.HealthStatus
 import kotlinx.serialization.Serializable
 
 internal val StartupTimeKey = AttributeKey<Long>("StartupTime")
-
-internal data class ErrorResponse(val message: String)
 
 @Serializable
 internal data class HealthResponse(
@@ -57,7 +52,7 @@ internal fun ComponentHealth.toResponse(): ComponentHealthResponse {
     )
 }
 
-fun Application.configureServerFeatures(startTimestamp: Long) {
+fun Application.configureServerFeatures(startTimestamp: Long, rateLimitPerMinute: Long) {
     attributes.put(StartupTimeKey, startTimestamp)
 
     install(CallLogging) {
@@ -73,17 +68,7 @@ fun Application.configureServerFeatures(startTimestamp: Long) {
 
     install(RateLimit) {
         global {
-            rateLimiter(limit = 100, refillPeriod = 1.minutes)
-        }
-    }
-
-    install(StatusPages) {
-        exception<MissingHeaderException> { cause, call ->
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Missing required header"))
-        }
-        exception<Throwable> { cause, call ->
-            application.log.error("Unhandled exception", cause)
-            call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Internal server error"))
+            rateLimiter(limit = rateLimitPerMinute.toInt(), refillPeriod = 1.minutes)
         }
     }
 
