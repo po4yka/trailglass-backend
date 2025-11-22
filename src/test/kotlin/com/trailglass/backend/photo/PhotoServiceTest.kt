@@ -1,6 +1,8 @@
 package com.trailglass.backend.photo
 
 import com.trailglass.backend.config.AppConfig
+import com.trailglass.backend.config.EmailConfig
+import com.trailglass.backend.config.EmailProvider
 import com.trailglass.backend.config.StorageBackend
 import com.trailglass.backend.config.StorageConfig
 import com.trailglass.backend.persistence.DatabaseFactory
@@ -90,7 +92,15 @@ class PhotoServiceTest {
                 secretKey = "minioadmin",
                 usePathStyle = true,
                 signingSecret = "secret",
-            )
+                thumbnailSize = 300,
+                thumbnailQuality = 0.85f,
+            ),
+            cloudflareAccess = null,
+            email = EmailConfig(
+                enabled = false,
+                provider = EmailProvider.CONSOLE,
+                smtp = null,
+            ),
         )
 
         dataSource = DatabaseFactory.dataSource(config)
@@ -116,6 +126,8 @@ class PhotoServiceTest {
             secretKey = "minioadmin",
             usePathStyle = true,
             signingSecret = "secret",
+            thumbnailSize = 300,
+            thumbnailQuality = 0.85f,
         )
         val storage: ObjectStorageService = S3ObjectStorageService(storageConfig)
         val repo = PhotoRepository(database)
@@ -156,6 +168,8 @@ class PhotoServiceTest {
             secretKey = null,
             usePathStyle = true,
             signingSecret = "secret",
+            thumbnailSize = 300,
+            thumbnailQuality = 0.85f,
         )
         val storage = PostgresObjectStorageService(database, InlineUrlSigner("secret"))
         val repo = PhotoRepository(database)

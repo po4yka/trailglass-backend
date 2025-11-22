@@ -1,11 +1,5 @@
 package com.trailglass.backend.di
 
-import com.trailglass.backend.email.DefaultEmailService
-import com.trailglass.backend.email.EmailService
-import com.trailglass.backend.email.LoggingEmailSender
-import com.trailglass.backend.email.SendGridEmailSender
-import com.trailglass.backend.email.SesEmailSender
-import com.trailglass.backend.email.SmtpEmailSender
 import com.trailglass.backend.export.DefaultExportService
 import com.trailglass.backend.export.ExportHousekeepingJob
 import com.trailglass.backend.export.ExportJobRepository
@@ -32,7 +26,6 @@ import com.trailglass.backend.visit.PlaceVisitService
 import com.trailglass.backend.scheduler.RecurringTaskScheduler
 import com.trailglass.backend.storage.InMemoryObjectStorageService
 import com.trailglass.backend.storage.ObjectStorageService
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,20 +40,9 @@ val domainModule = module {
     single<PlaceVisitService> { ExposedPlaceVisitService(get()) }
     single<UserProfileService> { ExposedUserProfileService(get()) }
 
-    single<EmailService> {
-        DefaultEmailService(
-            listOf(
-                SendGridEmailSender(),
-                SesEmailSender(),
-                SmtpEmailSender(),
-                LoggingEmailSender(),
-            ),
-        )
-    }
-
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { RecurringTaskScheduler(get()) }
-    single { ExportMetrics(SimpleMeterRegistry()) }
+    single { ExportMetrics(get()) }
     single<ExportJobRepository> { InMemoryExportJobRepository() }
     single { ExportHousekeepingJob(get(), get(), get()) }
     single<ExportService> {

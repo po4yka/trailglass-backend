@@ -88,7 +88,8 @@ class DefaultExportService(
 
     private suspend fun notifyUser(completion: ExportJobRecord) {
         val email = completion.email ?: return
-        emailService.sendExportReady(email, completion.downloadUrl.orEmpty())
+        val expiresAt = completion.expiresAt ?: Instant.now().plus(retention)
+        emailService.sendExportReadyEmail(email, completion.downloadUrl.orEmpty(), expiresAt)
     }
 
     private fun buildArchive(record: ExportJobRecord): ByteArray {

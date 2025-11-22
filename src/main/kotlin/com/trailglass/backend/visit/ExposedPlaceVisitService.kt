@@ -34,6 +34,8 @@ class ExposedPlaceVisitService(database: Database) : ExposedRepository(database)
                         row[longitude] = visit.longitude
                         row[arrivedAt] = visit.arrivedAt
                         row[departedAt] = visit.departedAt
+                        row[category] = visit.category
+                        row[isFavorite] = visit.isFavorite
                         row[updatedAt] = visit.updatedAt
                         row[deletedAt] = visit.deletedAt
                         row[serverVersion] = version
@@ -44,6 +46,8 @@ class ExposedPlaceVisitService(database: Database) : ExposedRepository(database)
                         row[longitude] = visit.longitude
                         row[arrivedAt] = visit.arrivedAt
                         row[departedAt] = visit.departedAt
+                        row[category] = visit.category
+                        row[isFavorite] = visit.isFavorite
                         row[updatedAt] = visit.updatedAt
                         row[deletedAt] = visit.deletedAt
                         row[serverVersion] = version
@@ -56,10 +60,18 @@ class ExposedPlaceVisitService(database: Database) : ExposedRepository(database)
         VisitBatchResult(appliedCount = applied, serverVersion = version)
     }
 
-    override suspend fun listVisits(userId: UUID, updatedAfter: Instant?, limit: Int): List<PlaceVisit> = tx {
+    override suspend fun listVisits(
+        userId: UUID,
+        updatedAfter: Instant?,
+        category: String?,
+        isFavorite: Boolean?,
+        limit: Int
+    ): List<PlaceVisit> = tx {
         val query = PlaceVisitsTable
             .select { PlaceVisitsTable.userId eq userId }
             .let { base -> updatedAfter?.let { base.andWhere { PlaceVisitsTable.updatedAt greaterEq it } } ?: base }
+            .let { base -> category?.let { base.andWhere { PlaceVisitsTable.category eq it } } ?: base }
+            .let { base -> isFavorite?.let { base.andWhere { PlaceVisitsTable.isFavorite eq it } } ?: base }
             .orderBy(PlaceVisitsTable.updatedAt to false)
             .limit(limit)
 
@@ -72,11 +84,35 @@ class ExposedPlaceVisitService(database: Database) : ExposedRepository(database)
                 longitude = row[PlaceVisitsTable.longitude],
                 arrivedAt = row[PlaceVisitsTable.arrivedAt],
                 departedAt = row[PlaceVisitsTable.departedAt],
+                category = row[PlaceVisitsTable.category],
+                isFavorite = row[PlaceVisitsTable.isFavorite],
                 updatedAt = row[PlaceVisitsTable.updatedAt],
                 deletedAt = row[PlaceVisitsTable.deletedAt],
                 serverVersion = row[PlaceVisitsTable.serverVersion],
             )
         }
+    }
+
+    override suspend fun getVisit(userId: UUID, visitId: UUID): PlaceVisit = tx {
+        val row = PlaceVisitsTable
+            .select { (PlaceVisitsTable.id eq visitId) and (PlaceVisitsTable.userId eq userId) }
+            .singleOrNull()
+            ?: throw IllegalArgumentException("Place visit not found for user")
+
+        PlaceVisit(
+            id = row[PlaceVisitsTable.id].value,
+            userId = row[PlaceVisitsTable.userId],
+            deviceId = row[PlaceVisitsTable.deviceId],
+            latitude = row[PlaceVisitsTable.latitude],
+            longitude = row[PlaceVisitsTable.longitude],
+            arrivedAt = row[PlaceVisitsTable.arrivedAt],
+            departedAt = row[PlaceVisitsTable.departedAt],
+            category = row[PlaceVisitsTable.category],
+            isFavorite = row[PlaceVisitsTable.isFavorite],
+            updatedAt = row[PlaceVisitsTable.updatedAt],
+            deletedAt = row[PlaceVisitsTable.deletedAt],
+            serverVersion = row[PlaceVisitsTable.serverVersion],
+        )
     }
 
     override suspend fun deleteVisits(userId: UUID, ids: List<UUID>): VisitBatchResult = tx {

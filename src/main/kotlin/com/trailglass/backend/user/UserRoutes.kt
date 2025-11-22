@@ -21,6 +21,40 @@ fun Route.userProfileRoutes() {
 
     rateLimit(DefaultFeatureRateLimit) {
         route("/profile") {
+            get {
+                val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
+
+                if (userId == null) {
+                    call.respond(HttpStatusCode.BadRequest, "userId is required")
+                    return@get
+                }
+
+                val profile = service.getProfile(userId)
+                if (profile == null) {
+                    call.respond(HttpStatusCode.NotFound, "Profile not found")
+                    return@get
+                }
+
+                // Calculate user statistics
+                val statistics = try {
+                    service.getUserStatistics(userId)
+                } catch (e: Exception) {
+                    // Log the error and return default statistics on failure
+                    call.application.environment.log.error("Failed to calculate statistics for user $userId", e)
+                    UserProfileStatistics()
+                }
+
+                val response = UserProfileResponse(
+                    userId = profile.id,
+                    email = profile.email,
+                    displayName = profile.displayName,
+                    profilePhotoUrl = null,
+                    createdAt = profile.updatedAt,
+                    statistics = statistics
+                )
+                call.respond(response)
+            }
+
             put {
                 val profile = call.receive<UserProfile>()
                 call.respond(service.upsertProfile(profile))

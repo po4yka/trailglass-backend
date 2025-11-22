@@ -41,6 +41,22 @@ fun Route.locationRoutes() {
                 call.respond(locationService.getLocations(userId, since, limit))
             }
 
+            get("/{id}") {
+                val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
+                val id = call.parameters["id"]?.let(UUID::fromString)
+
+                if (userId == null || id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "userId and id are required")
+                    return@get
+                }
+
+                try {
+                    call.respond(locationService.getLocation(userId, id))
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.NotFound, e.message ?: "Location not found")
+                }
+            }
+
             delete("/{id}") {
                 val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
                 val id = call.parameters["id"]?.let(UUID::fromString)

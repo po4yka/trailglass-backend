@@ -88,11 +88,13 @@ class DefaultExportServiceTest {
 private class RecordingEmailService : EmailService {
     val sent = mutableListOf<String>()
 
-    override suspend fun sendPasswordReset(to: String, resetLink: String) {
-        sent.add(to)
+    override suspend fun sendPasswordResetEmail(email: String, resetToken: String, resetUrl: String): Boolean {
+        sent.add(email)
+        return true
     }
 
-    override suspend fun sendExportReady(to: String, downloadLink: String) {
-        sent.add(to)
+    override suspend fun sendExportReadyEmail(email: String, exportUrl: String, expiresAt: Instant): Boolean {
+        sent.add(email)
+        return true
     }
 }

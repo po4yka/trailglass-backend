@@ -12,6 +12,7 @@ import java.util.UUID
 interface TripService {
     suspend fun upsertTrip(request: TripUpsertRequest): TripRecord
     suspend fun listTrips(userId: UUID, updatedAfter: Instant?, limit: Int = 100): List<TripRecord>
+    suspend fun getTrip(userId: UUID, tripId: UUID): TripRecord
     suspend fun deleteTrip(userId: UUID, tripId: UUID): TripRecord
 }
 

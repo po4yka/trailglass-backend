@@ -32,6 +32,7 @@ data class PhotoMetadata(
     val deletedAt: Instant?,
     val serverVersion: Long,
     val storageKey: String,
+    val thumbnailStorageKey: String?,
 )
 
 @Serializable
@@ -51,4 +52,5 @@ data class PhotoUploadPlan(
 data class PhotoRecord(
     val photo: PhotoMetadata,
     val download: PresignedObject?,
+    val thumbnailUrl: PresignedObject?,
 )

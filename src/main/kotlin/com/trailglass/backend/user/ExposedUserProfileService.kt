@@ -2,14 +2,23 @@ package com.trailglass.backend.user
 
 import com.trailglass.backend.persistence.DevicesTable
 import com.trailglass.backend.persistence.ExposedRepository
+import com.trailglass.backend.persistence.Photos
 import com.trailglass.backend.persistence.UserProfilesTable
+import com.trailglass.backend.persistence.schema.CountryVisits
+import com.trailglass.backend.persistence.schema.LocationSamples
+import com.trailglass.backend.persistence.schema.PhotoAttachments
+import com.trailglass.backend.persistence.schema.PlaceVisits
+import com.trailglass.backend.persistence.schema.Trips
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.countDistinct
 import org.jetbrains.exposed.sql.greaterEq
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.isNull
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 import java.time.Instant
 import java.util.UUID
@@ -17,6 +26,19 @@ import java.util.UUID
 class ExposedUserProfileService(database: Database) : ExposedRepository(database), UserProfileService {
     init {
         ensureTables(UserProfilesTable, DevicesTable)
+    }
+
+    override suspend fun getProfile(userId: UUID): UserProfile? = tx {
+        UserProfilesTable.select { UserProfilesTable.id eq userId }.singleOrNull()?.let { row ->
+            UserProfile(
+                id = row[UserProfilesTable.id].value,
+                email = row[UserProfilesTable.email],
+                displayName = row[UserProfilesTable.displayName],
+                updatedAt = row[UserProfilesTable.updatedAt],
+                deletedAt = row[UserProfilesTable.deletedAt],
+                serverVersion = row[UserProfilesTable.serverVersion],
+            )
+        }
     }
 
     override suspend fun upsertProfile(profile: UserProfile): UserProfile = tx {
@@ -92,6 +114,61 @@ class ExposedUserProfileService(database: Database) : ExposedRepository(database
             }
         }
         device.copy(serverVersion = version)
+    }
+
+    override suspend fun getUserStatistics(userId: UUID): UserProfileStatistics = tx {
+        // Count total locations (non-deleted)
+        val totalLocations = LocationSamples
+            .select { (LocationSamples.userId eq userId) and (LocationSamples.deletedAt.isNull()) }
+            .count()
+            .toInt()
+
+        // Count total place visits (non-deleted)
+        val totalPlaceVisits = PlaceVisits
+            .select { (PlaceVisits.userId eq userId) and (PlaceVisits.deletedAt.isNull()) }
+            .count()
+            .toInt()
+
+        // Count total trips (non-deleted)
+        val totalTrips = Trips
+            .select { (Trips.userId eq userId) and (Trips.deletedAt.isNull()) }
+            .count()
+            .toInt()
+
+        // Count total photos from both Photos and PhotoAttachments tables (non-deleted)
+        val photosCount = Photos
+            .select { (Photos.userId eq userId) and (Photos.deletedAt.isNull()) }
+            .count()
+            .toInt()
+
+        val photoAttachmentsCount = PhotoAttachments
+            .select { (PhotoAttachments.userId eq userId) and (PhotoAttachments.deletedAt.isNull()) }
+            .count()
+            .toInt()
+
+        val totalPhotos = photosCount + photoAttachmentsCount
+
+        // Count distinct countries visited (non-deleted)
+        val countriesVisited = CountryVisits
+            .slice(CountryVisits.countryCode)
+            .select { (CountryVisits.userId eq userId) and (CountryVisits.deletedAt.isNull()) }
+            .withDistinct()
+            .count()
+            .toInt()
+
+        // Total distance calculation - returning 0 for now as requested
+        // This would require calculating distances between consecutive location samples
+        // which is complex and may require haversine formula or stored calculated values
+        val totalDistance = 0.0
+
+        UserProfileStatistics(
+            totalLocations = totalLocations,
+            totalPlaceVisits = totalPlaceVisits,
+            totalTrips = totalTrips,
+            totalPhotos = totalPhotos,
+            countriesVisited = countriesVisited,
+            totalDistance = totalDistance,
+        )
     }
 
     override suspend fun deleteDevice(userId: UUID, deviceId: UUID): DeviceProfile? = tx {

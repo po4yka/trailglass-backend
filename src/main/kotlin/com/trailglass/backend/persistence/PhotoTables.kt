@@ -13,6 +13,7 @@ object Photos : UUIDTable("photos") {
     val sizeBytes = long("size_bytes")
     val storageKey = text("storage_key")
     val storageBackend = varchar("storage_backend", 50)
+    val thumbnailStorageKey = text("thumbnail_storage_key").nullable()
     val uploadedAt = timestamp("uploaded_at").nullable()
     val updatedAt = timestamp("updated_at")
     val deletedAt = timestamp("deleted_at").nullable()
@@ -35,4 +36,11 @@ object PhotoBlobs : Table("photo_blobs") {
 fun photoStorageKey(userId: UUID, photoId: UUID, fileName: String): String {
     val sanitized = fileName.substringAfterLast('/')
     return "photos/$userId/$photoId/$sanitized"
+}
+
+fun thumbnailStorageKey(userId: UUID, photoId: UUID, fileName: String): String {
+    val sanitized = fileName.substringAfterLast('/')
+    val nameWithoutExt = sanitized.substringBeforeLast('.')
+    val ext = sanitized.substringAfterLast('.', "jpg")
+    return "photos/$userId/$photoId/thumb_${nameWithoutExt}.$ext"
 }

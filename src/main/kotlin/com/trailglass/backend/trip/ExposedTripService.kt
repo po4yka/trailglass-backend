@@ -71,6 +71,25 @@ class ExposedTripService(database: Database) : ExposedRepository(database), Trip
         }
     }
 
+    override suspend fun getTrip(userId: UUID, tripId: UUID): TripRecord = tx {
+        val row = TripsTable
+            .select { (TripsTable.id eq tripId) and (TripsTable.userId eq userId) }
+            .singleOrNull()
+            ?: throw IllegalArgumentException("Trip not found for user")
+
+        TripRecord(
+            id = row[TripsTable.id].value,
+            userId = row[TripsTable.userId],
+            deviceId = row[TripsTable.deviceId],
+            name = row[TripsTable.name],
+            startDate = row[TripsTable.startDate],
+            endDate = row[TripsTable.endDate],
+            updatedAt = row[TripsTable.updatedAt],
+            deletedAt = row[TripsTable.deletedAt],
+            serverVersion = row[TripsTable.serverVersion],
+        )
+    }
+
     override suspend fun deleteTrip(userId: UUID, tripId: UUID): TripRecord = tx {
         val version = nextVersion()
         val now = Instant.now()

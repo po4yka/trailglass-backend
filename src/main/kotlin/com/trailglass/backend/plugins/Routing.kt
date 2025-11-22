@@ -3,6 +3,7 @@ package com.trailglass.backend.plugins
 import com.trailglass.backend.auth.authRoutes
 import com.trailglass.backend.export.exportRoutes
 import com.trailglass.backend.location.locationRoutes
+import com.trailglass.backend.metrics.metricsRoutes
 import com.trailglass.backend.photo.photoRoutes
 import com.trailglass.backend.settings.settingsRoutes
 import com.trailglass.backend.storage.inlineStorageRoutes
@@ -27,6 +28,8 @@ fun Application.configureRouting() {
     val storage by inject<ObjectStorageService>()
 
     routing {
+        metricsRoutes()
+
         route("/api/v1") {
             install(HeaderValidationPlugin)
 

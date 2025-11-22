@@ -16,6 +16,8 @@ data class AppConfig(
     val enableMetrics: Boolean,
     val autoMigrate: Boolean,
     val storage: StorageConfig,
+    val cloudflareAccess: CloudflareAccessConfig?,
+    val email: EmailConfig,
 )
 
 data class StorageConfig(
@@ -27,9 +29,33 @@ data class StorageConfig(
     val secretKey: String?,
     val usePathStyle: Boolean,
     val signingSecret: String?,
+    val thumbnailSize: Int,
+    val thumbnailQuality: Float,
+)
+
+data class CloudflareAccessConfig(
+    val clientId: String,
+    val clientSecret: String,
+)
+
+data class EmailConfig(
+    val enabled: Boolean,
+    val provider: EmailProvider,
+    val smtp: SmtpConfig?,
+)
+
+data class SmtpConfig(
+    val host: String,
+    val port: Int,
+    val username: String,
+    val password: String,
+    val fromEmail: String,
+    val fromName: String,
+    val useTls: Boolean,
 )
 
 enum class StorageBackend { S3, DATABASE }
+enum class EmailProvider { SMTP, CONSOLE, SENDGRID, SES }
 
 object ConfigLoader {
     private const val DEFAULT_PORT = 8080
@@ -72,6 +98,47 @@ object ConfigLoader {
             secretKey = env("STORAGE_SECRET_KEY"),
             usePathStyle = env("STORAGE_PATH_STYLE")?.toBooleanStrictOrNull() ?: true,
             signingSecret = env("STORAGE_SIGNING_SECRET"),
+            thumbnailSize = env("THUMBNAIL_SIZE")?.toIntOrNull() ?: 300,
+            thumbnailQuality = env("THUMBNAIL_QUALITY")?.toFloatOrNull() ?: 0.85f,
+        )
+
+        val cloudflareAccess = if (env("CLOUDFLARE_ACCESS_CLIENT_ID") != null && env("CLOUDFLARE_ACCESS_CLIENT_SECRET") != null) {
+            CloudflareAccessConfig(
+                clientId = env("CLOUDFLARE_ACCESS_CLIENT_ID")!!,
+                clientSecret = env("CLOUDFLARE_ACCESS_CLIENT_SECRET")!!,
+            )
+        } else {
+            null
+        }
+
+        val emailEnabled = env("EMAIL_ENABLED")?.toBooleanStrictOrNull() ?: false
+        val emailProviderStr = env("EMAIL_PROVIDER")?.lowercase() ?: "console"
+        val emailProvider = when (emailProviderStr) {
+            "smtp" -> EmailProvider.SMTP
+            "console" -> EmailProvider.CONSOLE
+            "sendgrid" -> EmailProvider.SENDGRID
+            "ses" -> EmailProvider.SES
+            else -> EmailProvider.CONSOLE
+        }
+
+        val smtpConfig = if (emailProvider == EmailProvider.SMTP) {
+            SmtpConfig(
+                host = env("SMTP_HOST") ?: error("SMTP_HOST is required when EMAIL_PROVIDER=smtp"),
+                port = env("SMTP_PORT")?.toIntOrNull() ?: 587,
+                username = env("SMTP_USERNAME") ?: error("SMTP_USERNAME is required when EMAIL_PROVIDER=smtp"),
+                password = env("SMTP_PASSWORD") ?: error("SMTP_PASSWORD is required when EMAIL_PROVIDER=smtp"),
+                fromEmail = env("SMTP_FROM_EMAIL") ?: error("SMTP_FROM_EMAIL is required when EMAIL_PROVIDER=smtp"),
+                fromName = env("SMTP_FROM_NAME") ?: "Trailglass",
+                useTls = env("SMTP_TLS_ENABLED")?.toBooleanStrictOrNull() ?: true,
+            )
+        } else {
+            null
+        }
+
+        val email = EmailConfig(
+            enabled = emailEnabled,
+            provider = emailProvider,
+            smtp = smtpConfig,
         )
 
         val config = AppConfig(
@@ -88,6 +155,8 @@ object ConfigLoader {
             enableMetrics = enableMetrics,
             autoMigrate = autoMigrate,
             storage = storage,
+            cloudflareAccess = cloudflareAccess,
+            email = email,
         )
 
         validate(config)

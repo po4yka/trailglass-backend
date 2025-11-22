@@ -3,6 +3,7 @@ package com.trailglass.backend.photo
 import com.trailglass.backend.config.StorageConfig
 import com.trailglass.backend.persistence.PhotoRepository
 import com.trailglass.backend.persistence.photoStorageKey
+import com.trailglass.backend.persistence.thumbnailStorageKey
 import com.trailglass.backend.storage.ObjectStorageService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,12 @@ class PhotoServiceImpl(
 ) : PhotoService {
     private val logger = LoggerFactory.getLogger(PhotoServiceImpl::class.java)
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val thumbnailGenerator = ThumbnailGenerator(
+        ThumbnailConfig(
+            size = storageConfig.thumbnailSize,
+            quality = storageConfig.thumbnailQuality,
+        )
+    )
 
     init {
         scope.launch {
@@ -53,15 +60,64 @@ class PhotoServiceImpl(
     override suspend fun confirmUpload(photoId: UUID, userId: UUID): PhotoRecord {
         val metadata = repository.markUploaded(photoId, userId)
             ?: throw IllegalArgumentException("Photo not found for user")
+
+        // Generate thumbnail asynchronously (don't block photo upload on failure)
+        scope.launch {
+            generateAndStoreThumbnail(metadata)
+        }
+
         val download = if (metadata.deletedAt == null) storageService.presignDownload(metadata.storageKey) else null
-        return PhotoRecord(metadata, download)
+        val thumbnailUrl = if (metadata.deletedAt == null && metadata.thumbnailStorageKey != null) {
+            storageService.presignDownload(metadata.thumbnailStorageKey)
+        } else null
+
+        return PhotoRecord(metadata, download, thumbnailUrl)
+    }
+
+    private suspend fun generateAndStoreThumbnail(metadata: PhotoMetadata) {
+        runCatching {
+            logger.debug("Starting thumbnail generation for photo {}", metadata.id)
+
+            // Download the original photo
+            storageService.openStream(metadata.storageKey).use { inputStream ->
+                // Generate thumbnail
+                val thumbnailBytes = thumbnailGenerator.generateThumbnail(inputStream, metadata.mimeType)
+                    .getOrElse { error ->
+                        logger.warn("Failed to generate thumbnail for photo {}: {}", metadata.id, error.message)
+                        return
+                    }
+
+                // Determine thumbnail storage key
+                val thumbKey = thumbnailStorageKey(metadata.userId, metadata.id, metadata.fileName)
+
+                // Determine thumbnail mime type
+                val thumbMimeType = when {
+                    metadata.mimeType.contains("png", ignoreCase = true) -> "image/png"
+                    metadata.mimeType.contains("webp", ignoreCase = true) -> "image/webp"
+                    else -> "image/jpeg"
+                }
+
+                // Store thumbnail
+                storageService.putBytes(thumbKey, thumbMimeType, thumbnailBytes)
+
+                // Update metadata with thumbnail storage key
+                repository.updateThumbnailStorageKey(metadata.id, metadata.userId, thumbKey)
+
+                logger.info("Successfully generated and stored thumbnail for photo {}", metadata.id)
+            }
+        }.onFailure { error ->
+            logger.error("Failed to generate thumbnail for photo {}", metadata.id, error)
+        }
     }
 
     override suspend fun fetchMetadata(userId: UUID, updatedAfter: Instant?, limit: Int): List<PhotoRecord> {
         return repository.list(userId, updatedAfter, limit)
             .map { photo ->
                 val download = if (photo.deletedAt == null) storageService.presignDownload(photo.storageKey) else null
-                PhotoRecord(photo, download)
+                val thumbnailUrl = if (photo.deletedAt == null && photo.thumbnailStorageKey != null) {
+                    storageService.presignDownload(photo.thumbnailStorageKey)
+                } else null
+                PhotoRecord(photo, download, thumbnailUrl)
             }
     }
 
@@ -69,7 +125,10 @@ class PhotoServiceImpl(
         val metadata = repository.find(photoId, userId)
             ?: throw IllegalArgumentException("Photo not found for user")
         val download = if (metadata.deletedAt == null) storageService.presignDownload(metadata.storageKey) else null
-        return PhotoRecord(metadata, download)
+        val thumbnailUrl = if (metadata.deletedAt == null && metadata.thumbnailStorageKey != null) {
+            storageService.presignDownload(metadata.thumbnailStorageKey)
+        } else null
+        return PhotoRecord(metadata, download, thumbnailUrl)
     }
 
     override suspend fun deletePhoto(photoId: UUID, userId: UUID) {

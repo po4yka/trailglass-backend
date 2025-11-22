@@ -38,6 +38,22 @@ fun Route.tripRoutes() {
                 call.respond(tripService.listTrips(userId, updatedAfter, limit))
             }
 
+            get("/{id}") {
+                val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
+                val id = call.parameters["id"]?.let(UUID::fromString)
+
+                if (userId == null || id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "userId and id are required")
+                    return@get
+                }
+
+                try {
+                    call.respond(tripService.getTrip(userId, id))
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.NotFound, e.message ?: "Trip not found")
+                }
+            }
+
             delete("/{id}") {
                 val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
                 val id = call.parameters["id"]?.let(UUID::fromString)

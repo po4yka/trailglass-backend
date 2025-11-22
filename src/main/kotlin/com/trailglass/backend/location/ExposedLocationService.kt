@@ -79,6 +79,26 @@ class ExposedLocationService(database: Database) : ExposedRepository(database), 
         }
     }
 
+    override suspend fun getLocation(userId: UUID, locationId: UUID): LocationSample = tx {
+        val row = LocationsTable
+            .select { (LocationsTable.id eq locationId) and (LocationsTable.userId eq userId) }
+            .singleOrNull()
+            ?: throw IllegalArgumentException("Location not found for user")
+
+        LocationSample(
+            id = row[LocationsTable.id].value,
+            userId = row[LocationsTable.userId],
+            deviceId = row[LocationsTable.deviceId],
+            latitude = row[LocationsTable.latitude],
+            longitude = row[LocationsTable.longitude],
+            accuracy = row[LocationsTable.accuracy],
+            recordedAt = row[LocationsTable.recordedAt],
+            updatedAt = row[LocationsTable.updatedAt],
+            deletedAt = row[LocationsTable.deletedAt],
+            serverVersion = row[LocationsTable.serverVersion],
+        )
+    }
+
     override suspend fun deleteLocations(userId: UUID, ids: List<UUID>): LocationBatchResult = tx {
         val serverVersion = nextVersion()
         var applied = 0

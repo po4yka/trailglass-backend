@@ -49,15 +49,22 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$coroutinesVersion")
     implementation("software.amazon.awssdk:s3:2.25.26")
+    implementation("net.coobird:thumbnailator:0.4.20")
+
+    // Email dependencies
+    implementation("jakarta.mail:jakarta.mail-api:2.1.3")
+    implementation("org.eclipse.angus:angus-mail:2.0.3")
 
     testImplementation("com.h2database:h2:2.2.224")
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
+    testImplementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     testImplementation("org.testcontainers:junit-jupiter:1.19.8")
     testImplementation("org.testcontainers:postgresql:1.19.8")
     testImplementation("org.testcontainers:minio:1.19.8")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+    testImplementation("io.mockk:mockk:1.13.9")
 }
 
 application {

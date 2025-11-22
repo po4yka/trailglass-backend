@@ -1,10 +1,12 @@
 package com.trailglass.backend
 
+import com.trailglass.backend.config.AppConfig
 import com.trailglass.backend.config.ConfigLoader
 import com.trailglass.backend.di.appModule
 import com.trailglass.backend.persistence.DatabaseFactory
 import com.trailglass.backend.persistence.FlywayMigrator
 import com.trailglass.backend.plugins.configureHeaderValidation
+import com.trailglass.backend.plugins.configureMonitoring
 import com.trailglass.backend.plugins.configureRouting
 import com.trailglass.backend.plugins.configureSerialization
 import com.trailglass.backend.plugins.configureServerFeatures
@@ -12,6 +14,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 import kotlin.time.Duration.Companion.seconds
@@ -40,8 +43,10 @@ fun main() {
 }
 
 fun Application.module() {
+    val config by inject<AppConfig>()
     configureSerialization()
     configureServerFeatures(startTimestamp)
+    configureMonitoring(config)
     configureHeaderValidation()
     configureRouting()
 }

@@ -29,6 +29,8 @@ object PlaceVisitsTable : UUIDTable("place_visits") {
     val longitude: Column<Double> = double("longitude")
     val arrivedAt = timestamp("arrived_at")
     val departedAt = timestamp("departed_at").nullable()
+    val category = varchar("category", 50).nullable()
+    val isFavorite = bool("is_favorite").default(false)
     val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp())
     val deletedAt = timestamp("deleted_at").nullable()
     val serverVersion = long("server_version")

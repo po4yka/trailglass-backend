@@ -28,6 +28,8 @@ fun Route.placeVisitRoutes() {
             get {
                 val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
                 val updatedAfter = call.request.queryParameters["updatedAfter"]?.let(Instant::parse)
+                val category = call.request.queryParameters["category"]
+                val isFavorite = call.request.queryParameters["isFavorite"]?.toBooleanStrictOrNull()
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 200
 
                 if (userId == null) {
@@ -35,7 +37,23 @@ fun Route.placeVisitRoutes() {
                     return@get
                 }
 
-                call.respond(service.listVisits(userId, updatedAfter, limit))
+                call.respond(service.listVisits(userId, updatedAfter, category, isFavorite, limit))
+            }
+
+            get("/{id}") {
+                val userId = call.request.queryParameters["userId"]?.let(UUID::fromString)
+                val id = call.parameters["id"]?.let(UUID::fromString)
+
+                if (userId == null || id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "userId and id are required")
+                    return@get
+                }
+
+                try {
+                    call.respond(service.getVisit(userId, id))
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.NotFound, e.message ?: "Place visit not found")
+                }
             }
 
             delete("/{id}") {

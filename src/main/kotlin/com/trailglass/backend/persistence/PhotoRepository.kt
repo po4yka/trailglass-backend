@@ -95,6 +95,15 @@ class PhotoRepository(private val database: Database) {
         }
     }
 
+    suspend fun updateThumbnailStorageKey(photoId: UUID, userId: UUID, thumbnailStorageKey: String): Boolean =
+        newSuspendedTransaction(Dispatchers.IO, db = database) {
+            val updated = Photos.update({ Photos.id eq photoId and (Photos.userId eq userId) }) {
+                it[Photos.thumbnailStorageKey] = thumbnailStorageKey
+                it[updatedAt] = Instant.now()
+            }
+            updated > 0
+        }
+
     private fun toMetadata(row: ResultRow): PhotoMetadata = PhotoMetadata(
         id = row[Photos.id].value,
         userId = row[Photos.userId],
@@ -107,5 +116,6 @@ class PhotoRepository(private val database: Database) {
         deletedAt = row[Photos.deletedAt],
         serverVersion = row[Photos.serverVersion],
         storageKey = row[Photos.storageKey],
+        thumbnailStorageKey = row[Photos.thumbnailStorageKey],
     )
 }

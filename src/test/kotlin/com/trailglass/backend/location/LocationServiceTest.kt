@@ -41,4 +41,59 @@ class LocationServiceTest {
         val deleted = service.getLocations(userId, null, 10).first()
         assertTrue(deleted.deletedAt != null)
     }
+
+    @Test
+    fun `get location by id returns correct location`() = runBlocking {
+        val userId = UUID.randomUUID()
+        val deviceId = UUID.randomUUID()
+        val locationId = UUID.randomUUID()
+        val sample = LocationSample(
+            id = locationId,
+            userId = userId,
+            deviceId = deviceId,
+            latitude = 10.0,
+            longitude = 20.0,
+            accuracy = 5f,
+            recordedAt = Instant.now(),
+            updatedAt = Instant.now(),
+            deletedAt = null,
+            serverVersion = 0,
+        )
+
+        service.upsertBatch(LocationBatchRequest(userId, deviceId, listOf(sample)))
+        val fetched = service.getLocation(userId, locationId)
+
+        assertEquals(locationId, fetched.id)
+        assertEquals(userId, fetched.userId)
+        assertEquals(10.0, fetched.latitude)
+        assertEquals(20.0, fetched.longitude)
+        assertEquals(5f, fetched.accuracy)
+    }
+
+    @Test
+    fun `get location fails for wrong user`() = runBlocking {
+        val userId1 = UUID.randomUUID()
+        val userId2 = UUID.randomUUID()
+        val deviceId = UUID.randomUUID()
+        val locationId = UUID.randomUUID()
+        val sample = LocationSample(
+            id = locationId,
+            userId = userId1,
+            deviceId = deviceId,
+            latitude = 10.0,
+            longitude = 20.0,
+            accuracy = 5f,
+            recordedAt = Instant.now(),
+            updatedAt = Instant.now(),
+            deletedAt = null,
+            serverVersion = 0,
+        )
+
+        service.upsertBatch(LocationBatchRequest(userId1, deviceId, listOf(sample)))
+
+        val exception = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            service.getLocation(userId2, locationId)
+        }
+        assertEquals("Location not found for user", exception.message)
+    }
 }

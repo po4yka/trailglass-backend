@@ -14,6 +14,7 @@ import de.mkammerer.argon2.Argon2Factory
 
 class DefaultAuthService(
     private val jwtProvider: JwtProvider,
+    private val emailService: com.trailglass.backend.email.EmailService,
     private val clock: Clock = Clock.systemUTC(),
     private val refreshTokenTtlSeconds: Long = JwtProvider.DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS,
     private val argon2: Argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id),
@@ -99,6 +100,24 @@ class DefaultAuthService(
         val user = usersByEmail[email.lowercase()] ?: return
         val token = UUID.randomUUID().toString()
         passwordResetTokens[token] = user.id
+
+        // Send password reset email asynchronously
+        // The reset URL should be constructed by the client/frontend
+        // For now, we pass the token and a placeholder URL
+        val resetUrl = "https://app.trailglass.com/reset-password?token=$token"
+
+        try {
+            emailService.sendPasswordResetEmail(
+                email = user.email,
+                resetToken = token,
+                resetUrl = resetUrl
+            )
+        } catch (e: Exception) {
+            // Log the error but don't fail the request
+            // The token is still valid and the user can try again
+            org.slf4j.LoggerFactory.getLogger(this::class.java)
+                .error("Failed to send password reset email to ${user.email}", e)
+        }
     }
 
     override suspend fun resetPassword(token: String, newPassword: String) {
