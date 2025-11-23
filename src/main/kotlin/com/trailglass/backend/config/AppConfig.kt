@@ -19,6 +19,13 @@ data class AppConfig(
     val storage: StorageConfig,
     val cloudflareAccess: CloudflareAccessConfig?,
     val email: EmailConfig,
+    val argon2: Argon2Config,
+)
+
+data class Argon2Config(
+    val iterations: Int,
+    val memory: Int,
+    val parallelism: Int,
 )
 
 data class StorageConfig(
@@ -144,6 +151,12 @@ object ConfigLoader {
             smtp = smtpConfig,
         )
 
+        val argon2 = Argon2Config(
+            iterations = env("ARGON2_ITERATIONS")?.toIntOrNull() ?: 2,
+            memory = env("ARGON2_MEMORY")?.toIntOrNull() ?: 65536,
+            parallelism = env("ARGON2_PARALLELISM")?.toIntOrNull() ?: 1,
+        )
+
         val config = AppConfig(
             host = host,
             port = port,
@@ -161,6 +174,7 @@ object ConfigLoader {
             storage = storage,
             cloudflareAccess = cloudflareAccess,
             email = email,
+            argon2 = argon2,
         )
 
         validate(config)

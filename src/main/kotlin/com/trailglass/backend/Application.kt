@@ -5,6 +5,7 @@ import com.trailglass.backend.config.ConfigLoader
 import com.trailglass.backend.di.appModule
 import com.trailglass.backend.persistence.DatabaseFactory
 import com.trailglass.backend.persistence.FlywayMigrator
+import com.trailglass.backend.plugins.configureAuthentication
 import com.trailglass.backend.plugins.configureHeaderValidation
 import com.trailglass.backend.plugins.configureHttpsEnforcement
 import com.trailglass.backend.plugins.configureMonitoring
@@ -52,5 +53,6 @@ fun Application.module() {
     configureMonitoring(config)
     configureHeaderValidation()
     configureHttpsEnforcement(config)
+    configureAuthentication()
     configureRouting()
 }

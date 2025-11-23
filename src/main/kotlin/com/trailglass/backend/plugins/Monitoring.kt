@@ -79,9 +79,4 @@ fun Application.configureMonitoring(config: AppConfig) {
     }
 }
 
-val GlobalRateLimit = RateLimitName("global")
-val AuthRateLimit = RateLimitName("auth")
-val SyncRateLimit = RateLimitName("sync")
-val LocationBatchRateLimit = RateLimitName("locations")
-val PhotoUploadRateLimit = RateLimitName("photos")
-val DefaultFeatureRateLimit = RateLimitName("default")
+

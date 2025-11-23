@@ -18,23 +18,23 @@ class DefaultAuthService(
     private val jwtProvider: JwtProvider,
     private val emailService: com.trailglass.backend.email.EmailService,
     private val passwordResetTokenRepository: PasswordResetTokenRepository,
+    private val userRepository: UserRepository,
+    private val argon2Config: com.trailglass.backend.config.Argon2Config,
     private val clock: Clock = Clock.systemUTC(),
     private val refreshTokenTtlSeconds: Long = JwtProvider.DEFAULT_REFRESH_TOKEN_EXPIRY_SECONDS,
     private val passwordResetTokenTtl: Duration = Duration.ofHours(1),
     private val argon2: Argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id),
 ) : AuthService {
 
-    private val usersByEmail = ConcurrentHashMap<String, StoredUser>()
-    private val usersById = ConcurrentHashMap<UUID, StoredUser>()
     private val refreshTokens = ConcurrentHashMap<String, StoredRefreshToken>()
 
     override suspend fun register(request: RegisterRequest): AuthSession {
-        val existing = usersByEmail[request.email.lowercase()]
+        val existing = userRepository.findByEmail(request.email.lowercase())
         if (existing != null) {
             throw ApiException(HttpStatusCode.Conflict, "user_exists", "User already registered")
         }
 
-        val user = StoredUser(
+        val newUser = User(
             id = UUID.randomUUID(),
             email = request.email.lowercase(),
             displayName = request.displayName,
@@ -43,14 +43,13 @@ class DefaultAuthService(
             lastSyncTimestamp = null,
         )
 
-        usersByEmail[user.email] = user
-        usersById[user.id] = user
+        val user = userRepository.create(newUser)
 
         return buildSession(user, request.deviceInfo.deviceId)
     }
 
     override suspend fun login(request: LoginRequest): AuthSession {
-        val user = usersByEmail[request.email.lowercase()]
+        val user = userRepository.findByEmail(request.email.lowercase())
             ?: throw ApiException(HttpStatusCode.Unauthorized, "invalid_credentials", "Invalid email or password")
 
         val passwordMatches = verifyPassword(request.password, user.passwordHash)
@@ -85,7 +84,7 @@ class DefaultAuthService(
             throw ApiException(HttpStatusCode.Unauthorized, "invalid_refresh_token", "Invalid or expired refresh token")
         }
 
-        val user = usersById[stored.userId]
+        val user = userRepository.findById(stored.userId)
             ?: throw ApiException(HttpStatusCode.Unauthorized, "invalid_refresh_token", "User no longer exists")
 
         invalidateStoredToken(request.refreshToken)
@@ -100,7 +99,7 @@ class DefaultAuthService(
     }
 
     override suspend fun requestPasswordReset(email: String) {
-        val user = usersByEmail[email.lowercase()] ?: return
+        val user = userRepository.findByEmail(email.lowercase()) ?: return
         val token = UUID.randomUUID().toString()
         val expiresAt = clock.instant().plus(passwordResetTokenTtl)
 
@@ -146,19 +145,17 @@ class DefaultAuthService(
         }
 
         // Find the user
-        val user = usersById[resetToken.userId]
+        val user = userRepository.findById(resetToken.userId)
             ?: throw ApiException(HttpStatusCode.NotFound, "user_not_found", "User not found")
 
         // Update the password
-        val updated = user.copy(passwordHash = hashPassword(newPassword))
-        usersByEmail[user.email] = updated
-        usersById[user.id] = updated
+        userRepository.updatePassword(user.id, hashPassword(newPassword))
 
         // Mark the token as consumed
         passwordResetTokenRepository.markAsConsumed(resetToken.id)
     }
 
-    private fun buildSession(user: StoredUser, deviceId: UUID, lastSync: Instant? = null): AuthSession {
+    private fun buildSession(user: User, deviceId: UUID, lastSync: Instant? = null): AuthSession {
         val tokens = issueTokens(user, deviceId)
         val profile = UserProfile(
             userId = user.id,
@@ -175,7 +172,7 @@ class DefaultAuthService(
         )
     }
 
-    private fun issueTokens(user: StoredUser, deviceId: UUID): AuthTokens {
+    private fun issueTokens(user: User, deviceId: UUID): AuthTokens {
         val tokens = jwtProvider.issueTokens(
             userId = user.id,
             email = user.email,
@@ -201,7 +198,7 @@ class DefaultAuthService(
     }
 
     private fun hashPassword(password: String): String {
-        return argon2.hash(2, 65536, 1, password.toCharArray())
+        return argon2.hash(argon2Config.iterations, argon2Config.memory, argon2Config.parallelism, password.toCharArray())
     }
 
     private fun verifyPassword(password: String, hash: String): Boolean {
@@ -222,15 +219,6 @@ class DefaultAuthService(
         }
     }
 }
-
-private data class StoredUser(
-    val id: UUID,
-    val email: String,
-    val displayName: String,
-    val passwordHash: String,
-    val createdAt: Instant,
-    val lastSyncTimestamp: Instant?,
-)
 
 private data class StoredRefreshToken(
     val token: String,
