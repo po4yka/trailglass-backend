@@ -46,7 +46,18 @@ val domainModule = module {
     single<ExportJobRepository> { InMemoryExportJobRepository() }
     single { ExportHousekeepingJob(get(), get(), get()) }
     single<ExportService> {
-        DefaultExportService(get(), get(), get(), get(), get(), get()).also { service ->
+        DefaultExportService(
+            storage = get(),
+            emailService = get(),
+            repository = get(),
+            scheduler = get(),
+            metrics = get(),
+            scope = get(),
+            locationService = get(),
+            tripService = get(),
+            placeVisitService = get(),
+            photoService = get(),
+        ).also { service ->
             service.scheduleHousekeeping(get())
         }
     }
